@@ -1,13 +1,13 @@
 # ⋆ Arch Radio ⋆
 
 <p align="center">
-  <img src="src-tauri/assets/Screenshot 2026-04-29 131214.png" width="80%" alt="Arch Radio Preview" />
+  <img src="assets/Screenshot 2026-04-29 131214.png" width="80%" alt="Arch Radio Preview" />
 </p>
 
 <p align="center">
-  <img src="src-tauri/assets/Screenshot 2026-04-29 131229.png" width="30%" alt="Widget Preview 1" />
-  <img src="src-tauri/assets/Screenshot 2026-04-29 131236.png" width="30%" alt="Widget Preview 2" />
-  <img src="src-tauri/assets/Screenshot 2026-04-29 131248.png" width="30%" alt="Widget Preview 3" />
+  <img src="assets/Screenshot 2026-04-29 131229.png" width="30%" alt="Widget Preview 1" />
+  <img src="assets/Screenshot 2026-04-29 131236.png" width="30%" alt="Widget Preview 2" />
+  <img src="assets/Screenshot 2026-04-29 131248.png" width="30%" alt="Widget Preview 3" />
 </p>
 
 A premium, high-fidelity desktop radio player built with **Tauri v2**, **Rust**, and **Vanilla Web Technologies**. Arch Radio provides a modern listening experience with a focus on aesthetics, performance, and deep OS integration.
