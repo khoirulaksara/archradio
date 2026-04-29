@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+
+# Tauri / Rust Build Artifacts
+src-tauri/target/
+src-tauri/gen/
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+*.swo
+
+# OS Files
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Backups
+radio-electron-backup/
+
+# Compiled Frontend (if applicable)
+# dist/

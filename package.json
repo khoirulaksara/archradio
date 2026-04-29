@@ -1,0 +1,22 @@
+{
+  "name": "radio",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "tauri dev",
+    "build": "tauri build",
+    "tauri": "tauri"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@tauri-apps/plugin-notification": "^2.3.3",
+    "electron": "^41.3.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.10.1"
+  }
+}
