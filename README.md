@@ -1,64 +1,36 @@
-# ⋆ Arch Radio ⋆
+# Arch Radio
+
+Desktop radio player built with Tauri v2 and Rust. Simple, fast, and stays out of your way with a native taskbar widget.
+
+## Features
+
+- **Compact Widget**: Mini-player that sits right above your taskbar.
+- **Glassmorphism**: Sleek, semi-transparent UI with real-time blur.
+- **Dynamic Themes**: UI colors automatically adjust to the station's logo.
+- **Tray Marquee**: Live scrolling song info in the system tray tooltip.
+- **Audio Normalizer**: Keeps volume levels consistent across different streams.
+- **Visualizer**: High-performance audio bars.
+- **Lightweight**: Minimal memory footprint thanks to Rust.
+
+## Preview
 
 <p align="center">
-  <img src="assets/Screenshot 2026-04-29 131214.png" width="80%" alt="Arch Radio Preview" />
+  <img src="assets/Screenshot 2026-04-29 131214.png" width="80%" />
 </p>
 
 <p align="center">
-  <img src="assets/Screenshot 2026-04-29 131229.png" width="30%" alt="Widget Preview 1" />
-  <img src="assets/Screenshot 2026-04-29 131236.png" width="30%" alt="Widget Preview 2" />
-  <img src="assets/Screenshot 2026-04-29 131248.png" width="30%" alt="Widget Preview 3" />
+  <img src="assets/Screenshot 2026-04-29 131229.png" width="30%" />
+  <img src="assets/Screenshot 2026-04-29 131236.png" width="30%" />
+  <img src="assets/Screenshot 2026-04-29 131248.png" width="30%" />
 </p>
 
-A premium, high-fidelity desktop radio player built with **Tauri v2**, **Rust**, and **Vanilla Web Technologies**. Arch Radio provides a modern listening experience with a focus on aesthetics, performance, and deep OS integration.
+## Development
 
-## ✨ Key Features
+### Setup
+1. Clone the repo: `git clone https://github.com/khoirulaksara/archradio.git`
+2. Install deps: `npm install`
+3. Run dev: `npm run tauri dev`
+4. Build: `npm run tauri build`
 
-- **💎 Glassmorphism UI**: A stunning, modern interface with real-time blur effects and sleek dark-mode aesthetics.
-- **📟 Compact Taskbar Widget**: A semi-transparent mini-player that sits perfectly above your taskbar, keeping your music controls always within reach without cluttering your workspace.
-- **🎨 Adaptive Branding**: The application dynamically extracts colors from the current radio station's logo to theme the entire UI (buttons, glow, and marquee).
-- **🔄 Animated Tray Tooltip**: Industry-first simulated marquee for System Tray tooltips, showing live scrolling song information directly from the tray icon.
-- **🎚️ Audio Normalizer**: Built-in audio processing to ensure consistent volume levels across different radio streams.
-- **📊 Real-time Visualizer**: Smooth, high-performance audio frequency visualizer.
-- **🚀 Native Performance**: Extremely low memory footprint and high performance thanks to the Rust backend.
-
-## 🛠️ Tech Stack
-
-- **Backend**: Rust (Tauri v2)
-- **Frontend**: HTML5, CSS3 (Vanilla), JavaScript
-- **Audio Processing**: Web Audio API
-- **System Integration**: Native Windows API calls via Rust
-
-## 🚀 Getting Started
-
-### Prerequisites
-- [Rust](https://www.rust-lang.org/tools/install)
-- [Node.js](https://nodejs.org/)
-
-### Installation
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/khoirulaksara/archradio.git
-   ```
-
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Run in development mode:
-   ```bash
-   npm run tauri dev
-   ```
-
-4. Build for production:
-   ```bash
-   npm run tauri build
-   ```
-
-## 📜 License
-This project is licensed under the MIT License.
-
----
-Built with ❤️ by [Khoirul Aksara](https://github.com/khoirulaksara)
+## License
+MIT
