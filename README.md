@@ -33,4 +33,4 @@ Desktop radio player built with Tauri v2 and Rust. Simple, fast, and stays out o
 4. Build: `npm run tauri build`
 
 ## License
-MIT
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.

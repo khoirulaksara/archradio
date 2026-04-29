@@ -1,3 +1,5 @@
+// Arch Radio - Copyright (c) 2026 Khoirul Aksara - MIT License
+
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
