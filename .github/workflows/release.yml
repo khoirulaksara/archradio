@@ -27,9 +27,9 @@ jobs:
         id: version
         shell: pwsh
         run: |
-          $major = Get-Date -Format "yy"
-          $minor = Get-Date -Format "M"
-          $version = "${major}.${minor}.${{ github.run_number }}"
+          $major = (Get-Date).Year % 100
+          $minor = (Get-Date).Month
+          $version = "$major.$minor.${{ github.run_number }}"
           echo "VERSION=$version" >> $env:GITHUB_OUTPUT
           
           # Update tauri.conf.json
