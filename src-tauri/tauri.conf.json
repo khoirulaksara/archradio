@@ -41,12 +41,14 @@
     ]
   },
 
-  "updater": {
-    "active": true,
-    "endpoints": [
-      "https://github.com/khoirulaksara/archradio/releases/latest/download/latest.json"
-    ],
-    "dialog": false,
-    "pubkey": "RWRqJEOLOe2xtIdBIzoHtmcnm0tNjTe+C2DnUtd1Cfsq3NGqs8iwxZFa"
+  "plugins": {
+    "updater": {
+      "active": true,
+      "endpoints": [
+        "https://github.com/khoirulaksara/archradio/releases/latest/download/latest.json"
+      ],
+      "dialog": false,
+      "pubkey": "RWRqJEOLOe2xtIdBIzoHtmcnm0tNjTe+C2DnUtd1Cfsq3NGqs8iwxZFa"
+    }
   }
 }
