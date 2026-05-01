@@ -84,8 +84,30 @@ jobs:
         shell: pwsh
         run: |
           $version = "${{ steps.version.outputs.VERSION }}"
-          $msiSigPath = Get-ChildItem "src-tauri/target/release/bundle/msi/*.msi.sig" | Select-Object -First 1
-          $msiSig = Get-Content $msiSigPath.FullName
+          echo "Looking for signatures in src-tauri/target/release/bundle/ ..."
+          
+          # Find any .sig file recursively
+          $sigFiles = Get-ChildItem -Path "src-tauri/target/release/bundle" -Filter "*.sig" -Recurse
+          if ($null -eq $sigFiles) {
+              Write-Error "No .sig files found! Build might have skipped signing."
+              exit 1
+          }
+          
+          $sigFile = $sigFiles | Select-Object -First 1
+          $sigContent = Get-Content $sigFile.FullName
+          echo "Found signature: $($sigFile.Name)"
+          
+          # Find the corresponding installer file
+          $installerFile = Get-ChildItem -Path "src-tauri/target/release/bundle" -Filter ($sigFile.BaseName) -Recurse | Where-Object { $_.Extension -ne ".sig" -and $_.Extension -ne ".zip" } | Select-Object -First 1
+          if ($null -eq $installerFile) {
+              Write-Error "Could not find installer file for signature $($sigFile.Name)"
+              exit 1
+          }
+          
+          $fileName = $installerFile.Name
+          # GitHub replaces spaces with dots in release assets
+          $ghFileName = $fileName -replace " ", "."
+          echo "Installer name on GitHub: $ghFileName"
           
           # Format for Tauri v2 Updater JSON
           $json = @{
@@ -94,15 +116,15 @@ jobs:
               pub_date = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
               platforms = @{
                   "windows-x86_64" = @{
-                      signature = $msiSig
-                      url = "https://github.com/khoirulaksara/archradio/releases/download/v$version/Arch.Radio_${version}_x64_en-US.msi"
+                      signature = $sigContent
+                      url = "https://github.com/khoirulaksara/archradio/releases/download/v$version/$ghFileName"
                   }
               }
           }
           $json | ConvertTo-Json -Depth 10 | Set-Content latest.json
           
-          # Also copy the .sig files to root for easier upload
-          Copy-Item $msiSigPath.FullName "Arch-Radio.msi.sig"
+          # Copy the .sig file for manual upload as well
+          Copy-Item $sigFile.FullName "Arch-Radio.sig"
 
       - name: Prepare Portable Version
         shell: pwsh
@@ -122,7 +144,7 @@ jobs:
           tag_name: v${{ steps.version.outputs.VERSION }}
           files: |
             latest.json
-            Arch-Radio.msi.sig
+            Arch-Radio.sig
             Arch-Radio-Portable.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
