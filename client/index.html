@@ -1637,7 +1637,7 @@
     <div class="about-section">
       <div class="about-title">Developed by Aksara</div>
       <div class="about-desc">Codename: Archangel</div>
-      <div class="about-desc" style="margin-top:4px; opacity:0.7">Version 1.0 (Tauri)</div>
+      <div class="about-desc" id="appVersionDisplay" style="margin-top:4px; opacity:0.7">Version ...</div>
       <button class="win-btn" id="checkUpdateBtn" onclick="window.windowControls.checkUpdates()" style="margin-top: 15px; width: 100%; height: 36px; background: var(--surface-hover); border: 1px solid var(--border-color); border-radius: 8px; font-size: 12px;">
         Check for Updates
       </button>
@@ -2065,6 +2065,32 @@ async function checkUpdatesSilently() {
     }
   } catch (e) {
     console.warn("Silent update check failed:", e);
+  }
+}
+
+async function updateAppVersion() {
+  if (!window.__TAURI__ || !window.__TAURI__.app) return;
+  try {
+    const version = await window.__TAURI__.app.getVersion();
+    const display = document.getElementById("appVersionDisplay");
+    if (display) display.innerText = `Version ${version} (Tauri)`;
+  } catch (e) {
+    console.warn("Failed to get app version:", e);
+  }
+}
+
+function restoreLastPlayed() {
+  const saved = localStorage.getItem('lastPlayedRadio');
+  if (saved) {
+    try {
+      const radio = JSON.parse(saved);
+      playingRadio = radio;
+      isPlaying = false; // Start in paused state
+      updatePlayerUI();
+      // Note: We don't set audio.src yet to avoid unnecessary loading
+    } catch (e) {
+      console.warn("Failed to restore last played:", e);
+    }
   }
 }
 
@@ -2554,8 +2580,16 @@ async function changePage(dir) {
   }
 }
 
-async function play(index, streamIndex = 0) {
-  const r = currentRadios[index];
+async function play(indexOrRadio, streamIndex = 0) {
+  let r, index;
+  if (typeof indexOrRadio === 'number') {
+    index = indexOrRadio;
+    r = currentRadios[index];
+  } else {
+    r = indexOrRadio;
+    index = r.indexOnPage || 0;
+  }
+  if (!r) return;
   
   if (playingRadio && playingRadio.id === r.id && playingRadio.currentStreamIndex === streamIndex && isPlaying) {
     toggle();
@@ -2587,8 +2621,11 @@ async function play(index, streamIndex = 0) {
     page: currentPage,
     indexOnPage: index,
     bitrate: r.bitrate || targetStream.bitrate,
-    codec: r.codec || targetStream.codec
+    codec: r.codec || targetStream.codec,
+    originalRadio: r // Store original for re-resolving if needed
   };
+  
+  localStorage.setItem('lastPlayedRadio', JSON.stringify(playingRadio));
   
   // Start connection timeout
   clearTimeout(connectionTimeout);
@@ -2727,6 +2764,12 @@ function toggle(e) {
     return
   }
   
+  // Handle restored state (audio.src is empty)
+  if (!audio.src && playingRadio) {
+    play(playingRadio.originalRadio || playingRadio, playingRadio.currentStreamIndex || 0);
+    return;
+  }
+
   if (audio.paused) {
     audio.play().catch(e => handleError(e))
     isPlaying = true
@@ -2952,7 +2995,9 @@ setTimeout(() => {
 
 // Init Updater - check silently on startup
 setTimeout(() => {
+  updateAppVersion();
   checkUpdatesSilently();
+  restoreLastPlayed();
 }, 5000);
 
 // Emergency reset on load
