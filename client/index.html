@@ -1317,8 +1317,137 @@
     background: rgba(255, 255, 255, 0.05);
     margin: 4px 6px;
   }
+  /* UPDATE MODAL */
+  .update-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 9999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.2s ease;
+  }
+  .update-modal-backdrop.active {
+    display: flex;
+  }
+  .update-modal {
+    background: linear-gradient(135deg, rgba(30, 30, 50, 0.95), rgba(20, 20, 40, 0.98));
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 16px;
+    padding: 24px 20px;
+    width: 268px;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+    animation: modalPop 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  @keyframes modalPop {
+    from { opacity: 0; transform: scale(0.85) translateY(10px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  .update-modal-icon {
+    font-size: 32px;
+    margin-bottom: 10px;
+  }
+  .update-modal-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: white;
+    margin-bottom: 4px;
+  }
+  .update-modal-version {
+    font-size: 12px;
+    color: var(--primary-color, #3b82f6);
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+  .update-modal-notes {
+    font-size: 11px;
+    color: rgba(255,255,255,0.5);
+    margin-bottom: 18px;
+    max-height: 60px;
+    overflow-y: auto;
+    line-height: 1.5;
+  }
+  .update-modal-actions {
+    display: flex;
+    gap: 8px;
+  }
+  .update-btn-cancel {
+    flex: 1;
+    padding: 9px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.07);
+    color: rgba(255,255,255,0.6);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .update-btn-cancel:hover { background: rgba(255,255,255,0.12); color: white; }
+  .update-btn-install {
+    flex: 2;
+    padding: 9px;
+    border-radius: 10px;
+    border: none;
+    background: var(--primary-color, #3b82f6);
+    color: white;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .update-btn-install:hover { filter: brightness(1.15); }
+  .update-btn-install:disabled { opacity: 0.6; cursor: not-allowed; }
 
-</style>
+  /* SETTINGS BADGE */
+  .settings-btn-wrapper {
+    position: relative;
+    display: inline-flex;
+  }
+  .update-badge {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    background: #fbbf24; /* yellow-400 */
+    color: #1e1b4b; /* dark indigo for contrast */
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    display: none; /* hidden by default */
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 800;
+    border: 1.5px solid #1a1a2e;
+    box-shadow: 0 0 8px rgba(251, 191, 36, 0.4);
+    pointer-events: none;
+    z-index: 10;
+  }
+  .update-badge.active {
+    display: flex;
+    animation: badgeBounce 1.5s infinite;
+  }
+  @keyframes badgeBounce {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+  }
+
+  .update-modal-backdrop {
+    position: absolute; /* Changed from fixed */
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 9999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.2s ease;
+    border-radius: 12px;
+  }
 </head>
 
 <body>
@@ -1328,9 +1457,13 @@
     <img src="icon-32.png" alt="Icon" style="width: 18px; height: 18px; border-radius: 4px;"> Arch Radio
   </div>
   <div class="window-controls">
-    <button class="win-btn" onclick="toggleSettings()" title="Settings">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-    </button>
+  <div class="window-controls">
+    <div class="settings-btn-wrapper">
+      <div id="updateBadge" class="update-badge">★</div>
+      <button class="win-btn" onclick="toggleSettings()" title="Settings">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      </button>
+    </div>
     <button class="win-btn" onclick="toggleFavoritesMode()" id="favToggleBtn" title="Favorites">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
     </button>
@@ -1508,6 +1641,20 @@
       <button class="win-btn" id="checkUpdateBtn" onclick="window.windowControls.checkUpdates()" style="margin-top: 15px; width: 100%; height: 36px; background: var(--surface-hover); border: 1px solid var(--border-color); border-radius: 8px; font-size: 12px;">
         Check for Updates
       </button>
+    </div>
+
+    <!-- UPDATE MODAL INSIDE SETTINGS -->
+    <div class="update-modal-backdrop" id="updateModalBackdrop" onclick="closeUpdateModal()">
+      <div class="update-modal" onclick="event.stopPropagation()">
+        <div class="update-modal-icon">⬆️</div>
+        <div class="update-modal-title">Update Available</div>
+        <div class="update-modal-version" id="updateModalVersion"></div>
+        <div class="update-modal-notes" id="updateModalNotes"></div>
+        <div class="update-modal-actions">
+          <button class="update-btn-cancel" onclick="closeUpdateModal()">Later</button>
+          <button class="update-btn-install" id="updateModalInstallBtn">Install &amp; Relaunch</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -1817,12 +1964,8 @@ window.windowControls = {
           await update.downloadAndInstall();
         };
 
-        const confirmed = confirm(`Update v${update.version} available!\n\n${update.body || 'No changelog'}\n\nInstall and relaunch now?`);
-        if (confirmed) {
-          btn.innerText = "Installing...";
-          btn.disabled = true;
-          await update.downloadAndInstall();
-        }
+        // Show custom modal instead of native confirm()
+        showUpdateModal(update);
       } else {
         btn.innerText = "Latest Version";
         btn.style.background = "rgba(74, 222, 128, 0.2)"; // Soft green
@@ -1885,6 +2028,49 @@ function updateSettings() {
 
 function toggleSettings() {
   document.getElementById("settingsOverlay").classList.toggle("active");
+}
+
+let _pendingUpdate = null;
+async function showUpdateModal(update) {
+  _pendingUpdate = update;
+  
+  // Make sure settings is open if we are showing the modal
+  if (!document.getElementById("settingsOverlay").classList.contains("active")) {
+    toggleSettings();
+  }
+
+  document.getElementById("updateModalVersion").innerText = `Version ${update.version} is available`;
+  document.getElementById("updateModalNotes").innerText = update.body || 'Bug fixes and improvements.';
+  
+  const installBtn = document.getElementById("updateModalInstallBtn");
+  installBtn.innerText = "Install & Relaunch";
+  installBtn.disabled = false;
+  installBtn.onclick = async () => {
+    installBtn.innerText = "Installing...";
+    installBtn.disabled = true;
+    await _pendingUpdate.downloadAndInstall();
+  };
+  
+  document.getElementById("updateModalBackdrop").classList.add("active");
+}
+
+async function checkUpdatesSilently() {
+  if (!window.__TAURI__ || !window.__TAURI__.updater) return;
+  try {
+    const update = await window.__TAURI__.updater.check();
+    if (update) {
+      document.getElementById("updateBadge").classList.add("active");
+      const btn = document.getElementById("checkUpdateBtn");
+      if (btn) btn.innerText = "Update Available!";
+    }
+  } catch (e) {
+    console.warn("Silent update check failed:", e);
+  }
+}
+
+function closeUpdateModal() {
+  document.getElementById("updateModalBackdrop").classList.remove("active");
+  _pendingUpdate = null;
 }
 
 const playIcon = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke-width="0" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>'
@@ -2764,11 +2950,9 @@ setTimeout(() => {
   }
 }, 1000);
 
-// Init Updater
+// Init Updater - check silently on startup
 setTimeout(() => {
-  if (window.windowControls && window.windowControls.checkUpdates) {
-    window.windowControls.checkUpdates();
-  }
+  checkUpdatesSilently();
 }, 5000);
 
 // Emergency reset on load
