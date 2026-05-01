@@ -2709,13 +2709,35 @@ audio.addEventListener('waiting', () => {
   document.getElementById("nowSubtitle").innerText = "Buffering...";
 });
 
+let stallTimer = null;
 audio.addEventListener('stalled', () => {
   document.getElementById("nowSubtitle").innerText = "Stalled... retrying";
+  
+  // Clear any previous stall timer
+  clearTimeout(stallTimer);
+  
+  // Give it 4 seconds, then try to reload the current stream
+  stallTimer = setTimeout(() => {
+    if (!isPlaying || !playingRadio) return;
+    
+    const currentSrc = audio.src;
+    console.warn("Stream stalled, reloading:", currentSrc);
+    
+    // Reload the current stream URL
+    audio.src = "";
+    audio.load();
+    audio.src = currentSrc;
+    audio.play().catch(err => {
+      console.error("Reload after stall failed:", err);
+      handleError(err);
+    });
+  }, 4000);
 });
 
 audio.addEventListener('playing', () => {
   isPlaying = true;
   clearTimeout(connectionTimeout);
+  clearTimeout(stallTimer); // Cancel stall retry if audio recovered
   document.getElementById("nowSubtitle").innerText = "Now playing";
   
   if (playingRadio) {

@@ -109,11 +109,16 @@ jobs:
           echo "NSIS: $($nsisFile.FullName)"
           echo "SIG: $($primarySig.FullName)"
 
-          # Determine URL filename (GitHub replaces spaces with dots)
+          # Determine URL filenames (GitHub replaces spaces with dots)
           $msiGhName = $msiFile.Name -replace " ", "."
           $msiUrl = "https://github.com/khoirulaksara/archradio/releases/download/$tag/$msiGhName"
+          $msiSigContent = Get-Content $msiSig.FullName -Raw
 
-          # Build latest.json
+          $nsisGhName = $nsisFile.Name -replace " ", "."
+          $nsisUrl = "https://github.com/khoirulaksara/archradio/releases/download/$tag/$nsisGhName"
+          $nsisSigContent = Get-Content $nsisExeSig.FullName -Raw
+
+          # Build latest.json with both MSI and NSIS entries
           $pub_date = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
           $latestJson = @{
             version  = $version
@@ -121,8 +126,12 @@ jobs:
             pub_date = $pub_date
             platforms = @{
               "windows-x86_64" = @{
-                signature = $sigContent.Trim()
+                signature = $msiSigContent.Trim()
                 url       = $msiUrl
+              }
+              "windows-x86_64-nsis" = @{
+                signature = $nsisSigContent.Trim()
+                url       = $nsisUrl
               }
             }
           } | ConvertTo-Json -Depth 10
