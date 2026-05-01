@@ -1505,31 +1505,13 @@
       <div class="about-title">Developed by Aksara</div>
       <div class="about-desc">Codename: Archangel</div>
       <div class="about-desc" style="margin-top:4px; opacity:0.7">Version 1.0 (Tauri)</div>
+      <button class="win-btn" id="checkUpdateBtn" onclick="window.windowControls.checkUpdates()" style="margin-top: 15px; width: 100%; height: 36px; background: var(--surface-hover); border: 1px solid var(--border-color); border-radius: 8px; font-size: 12px;">
+        Check for Updates
+      </button>
     </div>
   </div>
 </div>
 
-<!-- CUSTOM CONTEXT MENU -->
-<div class="custom-cm" id="customCM">
-  <div class="cm-item" onclick="location.reload()">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
-    Reload App
-  </div>
-  <div class="cm-divider"></div>
-  <div class="cm-item" onclick="toggleCompactMode(true)">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2" ry="2"></rect><rect x="14" y="14" width="8" height="8" rx="2" ry="2"></rect></svg>
-    Compact Mode
-  </div>
-  <div class="cm-item" onclick="toggleSettings()">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-    Settings
-  </div>
-  <div class="cm-divider"></div>
-  <div class="cm-item delete" onclick="window.windowControls.close()">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-    Exit Archangel
-  </div>
-</div>
 
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 <script>
@@ -1813,17 +1795,52 @@ window.windowControls = {
   },
   checkUpdates: async () => {
     if (!window.__TAURI__ || !window.__TAURI__.updater) return;
+    const btn = document.getElementById("checkUpdateBtn");
+    if (!btn) return;
+    const originalText = "Check for Updates";
+    
     try {
+      btn.innerText = "Checking...";
+      btn.disabled = true;
+      
       const update = await window.__TAURI__.updater.check();
       if (update) {
+        btn.innerText = "Update Now";
+        btn.style.background = "var(--primary-color)";
+        btn.style.color = "white";
+        btn.disabled = false;
+        
+        // Change onclick temporarily to install directly if clicked again
+        btn.onclick = async () => {
+          btn.innerText = "Installing...";
+          btn.disabled = true;
+          await update.downloadAndInstall();
+        };
+
         const confirmed = confirm(`Update v${update.version} available!\n\n${update.body || 'No changelog'}\n\nInstall and relaunch now?`);
         if (confirmed) {
-          document.getElementById("nowSubtitle").innerText = "Installing update...";
+          btn.innerText = "Installing...";
+          btn.disabled = true;
           await update.downloadAndInstall();
         }
+      } else {
+        btn.innerText = "Latest Version";
+        btn.style.background = "rgba(74, 222, 128, 0.2)"; // Soft green
+        btn.style.color = "#4ade80";
+        setTimeout(() => {
+          btn.innerText = originalText;
+          btn.disabled = false;
+          btn.style.background = "";
+          btn.style.color = "";
+        }, 3000);
       }
     } catch (e) {
       console.error("Update check failed:", e);
+      btn.innerText = "Check Failed";
+      setTimeout(() => {
+        btn.innerText = originalText;
+        btn.disabled = false;
+      }, 3000);
     }
   }
 };
@@ -2738,30 +2755,8 @@ document.getElementById("mainPlayer").classList.remove("expanded");
 
 initGeolocation();
 
-// CUSTOM CONTEXT MENU LOGIC
-document.addEventListener('contextmenu', e => {
-  e.preventDefault();
-  const cm = document.getElementById('customCM');
-  cm.style.display = 'block';
-  
-  let x = e.clientX;
-  let y = e.clientY;
-  const winW = window.innerWidth;
-  const winH = window.innerHeight;
-  const cmW = cm.offsetWidth || 170;
-  const cmH = cm.offsetHeight || 150;
-  
-  if (x + cmW > winW) x = winW - cmW - 5;
-  if (y + cmH > winH) y = winH - cmH - 5;
-  
-  cm.style.left = x + 'px';
-  cm.style.top = y + 'px';
-});
-
-document.addEventListener('click', () => {
-  const cm = document.getElementById('customCM');
-  if (cm) cm.style.display = 'none';
-});
+// Disable Context Menu
+document.addEventListener('contextmenu', e => e.preventDefault());
 
 // Disable DevTools shortcuts
 document.addEventListener('keydown', e => {

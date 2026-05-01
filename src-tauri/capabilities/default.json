@@ -20,6 +20,8 @@
     "core:window:allow-set-resizable",
     "autostart:allow-enable",
     "autostart:allow-disable",
-    "geolocation:allow-get-current-position"
+    "geolocation:allow-get-current-position",
+    "updater:allow-check",
+    "updater:allow-download-and-install"
   ]
 }
