@@ -80,3 +80,24 @@ jobs:
           includeRelease: true
           args: --verbose
 
+      - name: Prepare Portable Version
+        shell: pwsh
+        run: |
+          $name = "Arch Radio"
+          $exePath = "src-tauri/target/release/${name}.exe"
+          if (Test-Path $exePath) {
+            Copy-Item $exePath "Arch-Radio-Portable.exe"
+          } else {
+            # Fallback if case-sensitive or different name
+            $exePath = Get-ChildItem "src-tauri/target/release/*.exe" | Select-Object -First 1
+            Copy-Item $exePath.FullName "Arch-Radio-Portable.exe"
+          }
+
+      - name: Upload Portable to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.VERSION }}
+          files: Arch-Radio-Portable.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
