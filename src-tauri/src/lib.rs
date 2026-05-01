@@ -84,33 +84,53 @@ fn update_tray_tooltip(app: tauri::AppHandle, title: String) {
     }
 }
 
+use std::sync::Mutex;
+
+struct AppState {
+    last_normal_pos: Mutex<Option<tauri::PhysicalPosition<i32>>>,
+}
+
 #[tauri::command]
-fn set_widget_mode(window: tauri::Window, enabled: bool) {
+fn set_widget_mode(window: tauri::Window, state: tauri::State<AppState>, enabled: bool) {
     let _ = window.set_resizable(true);
     if enabled {
+        // Save current position before shrinking
+        if let Ok(pos) = window.outer_position() {
+            let mut last_pos = state.last_normal_pos.lock().unwrap();
+            *last_pos = Some(pos);
+        }
+
         let _ = window.set_size(tauri::LogicalSize::new(300.0, 66.0));
         let _ = window.set_skip_taskbar(true);
         let _ = window.set_always_on_top(true);
         let _ = window.set_decorations(false); // No OS controls
 
-        // Position at bottom right
+        // Position at bottom right for widget
         if let Ok(Some(monitor)) = window.primary_monitor() {
             let screen_size = monitor.size();
             let scale_factor = monitor.scale_factor();
             let window_size = tauri::LogicalSize::new(300.0, 66.0).to_physical::<u32>(scale_factor);
             
-            // Adjust X to be on the right, Y to be above taskbar (increased offset to 85px)
             let x = screen_size.width - window_size.width - 20;
             let y = screen_size.height - window_size.height - 57; 
             
             let _ = window.set_position(tauri::PhysicalPosition::new(x as i32, y as i32));
         }
     } else {
+        // Restore size first
         let _ = window.set_size(tauri::LogicalSize::new(320.0, 560.0));
-        let _ = window.center();
+        
+        // Restore position if we have it
+        let last_pos = state.last_normal_pos.lock().unwrap();
+        if let Some(pos) = *last_pos {
+            let _ = window.set_position(pos);
+        } else {
+            let _ = window.center();
+        }
+
         let _ = window.set_skip_taskbar(false);
         let _ = window.set_always_on_top(false);
-        let _ = window.set_decorations(false); // Also no OS controls in normal mode
+        let _ = window.set_decorations(false);
     }
     let _ = window.set_resizable(false);
 }
@@ -145,11 +165,26 @@ async fn detect_ip_location() -> Result<serde_json::Value, String> {
     Ok(json)
 }
 
+#[cfg(target_os = "windows")]
+fn set_aumid() {
+    use windows::Win32::UI::Shell::SetCurrentProcessExplicitAppUserModelID;
+    use windows::core::PCWSTR;
+    let aumid: Vec<u16> = "com.radio.arch".encode_utf16().chain(std::iter::once(0)).collect();
+    unsafe {
+        let _ = SetCurrentProcessExplicitAppUserModelID(PCWSTR(aumid.as_ptr()));
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[cfg(target_os = "windows")]
+    set_aumid();
+
     tauri::Builder::default()
+        .manage(AppState { last_normal_pos: Mutex::new(None) })
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, Some(vec![])))
         .plugin(tauri_plugin_geolocation::init())
+        .plugin(tauri_plugin_window_state::Builder::default().build())
         .invoke_handler(tauri::generate_handler![
             fetch_metadata, 
             update_tray_tooltip, 
