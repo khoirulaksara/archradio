@@ -68,7 +68,8 @@ jobs:
       - name: Rust setup
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Tauri build
+      - name: Build and Release
+        id: tauri_build
         uses: tauri-apps/tauri-action@v0
         with:
           tagName: v${{ steps.version.outputs.VERSION }}
@@ -76,9 +77,32 @@ jobs:
           releaseBody: "${{ steps.changelog.outputs.BODY }}"
           releaseDraft: false
           prerelease: false
-          includeUpdaterJson: true
           includeRelease: true
           args: --verbose
+
+      - name: Generate latest.json
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.VERSION }}"
+          $msiSigPath = Get-ChildItem "src-tauri/target/release/bundle/msi/*.msi.sig" | Select-Object -First 1
+          $msiSig = Get-Content $msiSigPath.FullName
+          
+          # Format for Tauri v2 Updater JSON
+          $json = @{
+              version = $version
+              notes = "Release v$version"
+              pub_date = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
+              platforms = @{
+                  "windows-x86_64" = @{
+                      signature = $msiSig
+                      url = "https://github.com/khoirulaksara/archradio/releases/download/v$version/Arch.Radio_${version}_x64_en-US.msi"
+                  }
+              }
+          }
+          $json | ConvertTo-Json -Depth 10 | Set-Content latest.json
+          
+          # Also copy the .sig files to root for easier upload
+          Copy-Item $msiSigPath.FullName "Arch-Radio.msi.sig"
 
       - name: Prepare Portable Version
         shell: pwsh
@@ -88,16 +112,17 @@ jobs:
           if (Test-Path $exePath) {
             Copy-Item $exePath "Arch-Radio-Portable.exe"
           } else {
-            # Fallback if case-sensitive or different name
             $exePath = Get-ChildItem "src-tauri/target/release/*.exe" | Select-Object -First 1
             Copy-Item $exePath.FullName "Arch-Radio-Portable.exe"
           }
 
-      - name: Upload Portable to Release
+      - name: Upload Assets to Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.VERSION }}
-          files: Arch-Radio-Portable.exe
+          files: |
+            latest.json
+            Arch-Radio.msi.sig
+            Arch-Radio-Portable.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
