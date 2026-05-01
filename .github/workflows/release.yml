@@ -72,9 +72,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         run: |
           echo "Signing env check: KEY length=$($env:TAURI_SIGNING_PRIVATE_KEY.Length)"
-          cd src-tauri
-          cargo tauri build --verbose
-          cd ..
+          npx tauri build --verbose
 
       - name: Collect Artifacts and Create Release
         shell: pwsh
