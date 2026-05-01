@@ -86,8 +86,8 @@ jobs:
           $version = "${{ steps.version.outputs.VERSION }}"
           echo "Looking for signatures in src-tauri/target/release/bundle/ ..."
           
-          # Find any .sig file recursively
-          $sigFiles = Get-ChildItem -Path "src-tauri/target/release/bundle" -Filter "*.sig" -Recurse
+          # Find any .sig file recursively in the whole workspace
+          $sigFiles = Get-ChildItem -Path "." -Filter "*.sig" -Recurse
           if ($null -eq $sigFiles) {
               Write-Error "No .sig files found! Build might have skipped signing."
               exit 1
@@ -97,8 +97,8 @@ jobs:
           $sigContent = Get-Content $sigFile.FullName
           echo "Found signature: $($sigFile.Name)"
           
-          # Find the corresponding installer file
-          $installerFile = Get-ChildItem -Path "src-tauri/target/release/bundle" -Filter ($sigFile.BaseName) -Recurse | Where-Object { $_.Extension -ne ".sig" -and $_.Extension -ne ".zip" } | Select-Object -First 1
+          # Find the corresponding installer file in the whole workspace
+          $installerFile = Get-ChildItem -Path "." -Filter ($sigFile.BaseName) -Recurse | Where-Object { $_.Extension -ne ".sig" -and $_.Extension -ne ".zip" } | Select-Object -First 1
           if ($null -eq $installerFile) {
               Write-Error "Could not find installer file for signature $($sigFile.Name)"
               exit 1
