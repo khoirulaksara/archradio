@@ -2337,31 +2337,31 @@ async function changePage(dir) {
 }
 
 async function play(index, streamIndex = 0) {
-  const r = currentRadios[index]
+  const r = currentRadios[index];
   
   if (playingRadio && playingRadio.id === r.id && playingRadio.currentStreamIndex === streamIndex && isPlaying) {
-    toggle()
-    return
+    toggle();
+    return;
   }
-  
+
   const targetStream = (r.streams && r.streams.length > streamIndex) ? r.streams[streamIndex] : {};
   let streamUrl = targetStream.url || r.stream;
   
-  // SOLUSI: Resolve URL untuk stasiun yang menggunakan token/redirect (seperti Radiojar)
-  if (streamUrl && (streamUrl.includes('radiojar.com') || streamUrl.includes('stream'))) {
-    document.getElementById("nowSubtitle").innerText = "Resolving stream...";
-    try {
-      const resolved = await window.__TAURI__.core.invoke('resolve_url', { url: streamUrl });
-      console.log("Resolved URL:", resolved);
-      streamUrl = resolved;
-    } catch (e) {
-      console.warn("Failed to resolve URL, trying original:", e);
-    }
+  document.getElementById("nowSubtitle").innerText = "Connecting...";
+  
+  // Resolve URL (Radiojar fix)
+  try {
+    const resolved = await window.__TAURI__.core.invoke('resolve_url', { url: streamUrl });
+    console.log("Resolved URL:", resolved);
+    streamUrl = resolved;
+  } catch (e) {
+    console.warn("Failed to resolve URL, using original:", e);
   }
 
   playingRadio = {
     id: r.id,
     name: r.name,
+    city: r.city,
     logo: r.logo,
     stream: streamUrl,
     streams: r.streams || [],
@@ -2370,50 +2370,70 @@ async function play(index, streamIndex = 0) {
     indexOnPage: index,
     bitrate: r.bitrate || targetStream.bitrate,
     codec: r.codec || targetStream.codec
-  }
-  
-  // Use the already defined streamUrl
-  document.getElementById("nowSubtitle").innerText = "Connecting..."
+  };
   
   // Start connection timeout
   clearTimeout(connectionTimeout);
   connectionTimeout = setTimeout(() => {
-    if (playingRadio && playingRadio.id === r.id && !audio.playing && isPlaying) {
-        console.warn("Connection timeout reached");
-        handleError(new Error("Connection timeout"));
+    if (playingRadio && playingRadio.id === r.id && !isPlaying) {
+      console.warn("Connection timeout reached");
+      handleError(new Error("Connection timeout"));
     }
   }, 10000);
 
   if (hls) {
-    hls.destroy()
-    hls = null
+    hls.destroy();
+    hls = null;
   }
 
   if (streamUrl.includes('.m3u8') && Hls.isSupported()) {
-    hls = new Hls()
-    hls.loadSource(streamUrl)
-    hls.attachMedia(audio)
+    hls = new Hls();
+    hls.loadSource(streamUrl);
+    hls.attachMedia(audio);
     hls.on(Hls.Events.MANIFEST_PARSED, function() {
       audio.play().then(() => {
         if (appSettings.normalizer) initAudioContext();
-      }).catch(e => handleError(e))
-      isPlaying = true
-      updatePlayerUI()
-      updateAccentColor(playingRadio.logo)
-    })
+        updateMediaSession(playingRadio);
+      }).catch(e => handleError(e));
+      isPlaying = true;
+      updatePlayerUI();
+      updateAccentColor(playingRadio.logo);
+    });
     hls.on(Hls.Events.ERROR, function(event, data) {
-      if (data.fatal) handleError(new Error("HLS Error"))
-    })
+      if (data.fatal) handleError(new Error("HLS Error"));
+    });
   } else {
-    audio.src = streamUrl
+    audio.src = streamUrl;
     audio.play().then(() => {
       if (appSettings.normalizer) initAudioContext();
-    }).catch(e => handleError(e))
-    isPlaying = true
+      updateMediaSession(playingRadio);
+    }).catch(e => handleError(e));
+    isPlaying = true;
   }
   
-  updatePlayerUI()
-  renderPage()
+  updatePlayerUI();
+  renderPage();
+}
+
+async function updateMediaSession(radio) {
+  if (!("mediaSession" in navigator)) return;
+
+  const artSrc = await getAsDataURL(radio.logo);
+  
+  navigator.mediaSession.metadata = new MediaMetadata({
+    title: radio.name,
+    artist: radio.city || "Indonesia",
+    album: "Arch Radio",
+    artwork: [
+      { src: artSrc, sizes: '128x128', type: 'image/png' },
+      { src: artSrc, sizes: '512x512', type: 'image/png' }
+    ]
+  });
+
+  navigator.mediaSession.setActionHandler("play", () => toggle());
+  navigator.mediaSession.setActionHandler("pause", () => toggle());
+  navigator.mediaSession.setActionHandler("previoustrack", () => prev());
+  navigator.mediaSession.setActionHandler("nexttrack", () => next());
 }
 
 function changeVolume(val) {
@@ -2588,29 +2608,7 @@ function updatePlayerUI() {
       favBtn.classList.remove('favorited');
       favBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>';
     }
-    // Update Media Session (Windows/OS Media Controls)
-    if ('mediaSession' in navigator) {
-      const targetId = playingRadio.id;
-      getAsDataURL(playingRadio.logo).then(artSrc => {
-        // RACE CONDITION CHECK: Only update if we're still on the same station
-        if (!playingRadio || playingRadio.id !== targetId) return;
-        
-        navigator.mediaSession.metadata = new MediaMetadata({
-          title: playingRadio.name,
-          artist: 'Arch Radio',
-          album: 'Live Stream',
-          artwork: [
-            { src: artSrc, sizes: '128x128', type: 'image/png' },
-            { src: artSrc, sizes: '512x512', type: 'image/png' }
-          ]
-        });
-      });
-      
-      navigator.mediaSession.setActionHandler('play', () => toggle());
-      navigator.mediaSession.setActionHandler('pause', () => toggle());
-      navigator.mediaSession.setActionHandler('previoustrack', () => prev());
-      navigator.mediaSession.setActionHandler('nexttrack', () => next());
-    }
+    // Update Media Session (Windows/OS Media Controls) handled via updateMediaSession()
 
     document.title = `Arch Radio - ${playingRadio.name}`;
   }
@@ -2679,6 +2677,10 @@ audio.addEventListener('waiting', () => {
   document.getElementById("nowSubtitle").innerText = "Buffering...";
 });
 
+audio.addEventListener('stalled', () => {
+  document.getElementById("nowSubtitle").innerText = "Stalled... retrying";
+});
+
 audio.addEventListener('playing', () => {
   isPlaying = true;
   clearTimeout(connectionTimeout);
@@ -2692,6 +2694,8 @@ audio.addEventListener('playing', () => {
 });
 
 audio.addEventListener('error', () => {
+  console.error("Audio stream error");
+  setStationStatus(playingRadio ? playingRadio.id : null, 0);
   handleError(new Error("Audio stream failed"));
 });
 
