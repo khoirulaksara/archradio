@@ -36,3 +36,4 @@ radio-electron-backup/
 
 # Compiled Frontend (if applicable)
 # dist/
+".tauri/" 
