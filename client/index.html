@@ -1810,6 +1810,21 @@ window.windowControls = {
     } catch(e) {
       console.error("Failed to apply window settings:", e);
     }
+  },
+  checkUpdates: async () => {
+    if (!window.__TAURI__ || !window.__TAURI__.updater) return;
+    try {
+      const update = await window.__TAURI__.updater.check();
+      if (update) {
+        const confirmed = confirm(`Update v${update.version} available!\n\n${update.body || 'No changelog'}\n\nInstall and relaunch now?`);
+        if (confirmed) {
+          document.getElementById("nowSubtitle").innerText = "Installing update...";
+          await update.downloadAndInstall();
+        }
+      }
+    } catch (e) {
+      console.error("Update check failed:", e);
+    }
   }
 };
 
@@ -2709,6 +2724,13 @@ setTimeout(() => {
     window.__TAURI__.core.invoke('set_widget_mode', { enabled: false });
   }
 }, 1000);
+
+// Init Updater
+setTimeout(() => {
+  if (window.windowControls && window.windowControls.checkUpdates) {
+    window.windowControls.checkUpdates();
+  }
+}, 5000);
 
 // Emergency reset on load
 document.getElementById("settingsOverlay").classList.remove("active");

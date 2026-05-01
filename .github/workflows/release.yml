@@ -1,0 +1,113 @@
+name: Release Arch Radio
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  release:
+    permissions:
+      contents: write
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Generate Version
+        id: version
+        shell: pwsh
+        run: |
+          $date = Get-Date -Format "yyyy.MM.dd"
+          $version = "${date}.${{ github.run_number }}"
+          echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+          
+          # Update tauri.conf.json
+          $config = Get-Content src-tauri/tauri.conf.json | ConvertFrom-Json
+          $config.version = $version
+          $config | ConvertTo-Json -Depth 10 | Set-Content src-tauri/tauri.conf.json
+          
+          # Update Cargo.toml
+          $cargo = Get-Content src-tauri/Cargo.toml
+          $cargo = $cargo -replace '^version = ".*"', "version = `"$version`""
+          Set-Content src-tauri/Cargo.toml $cargo
+
+      - name: Generate Changelog
+        id: changelog
+        shell: pwsh
+        run: |
+          $commits = git log $(git describe --tags --abbrev=0 2>$null || git rev-list --max-parents=0 HEAD)..HEAD --pretty=format:"%s"
+          $feats = $commits | Where-Object { $_ -match '^feat' }
+          $fixes = $commits | Where-Object { $_ -match '^fix' }
+          $others = $commits | Where-Object { $_ -notmatch '^(feat|fix)' }
+          
+          $body = "## Release v${{ steps.version.outputs.VERSION }}`n`n"
+          if ($feats) { $body += "### 🚀 Features`n" + ($feats -join "`n") + "`n`n" }
+          if ($fixes) { $body += "### 🛠️ Fixes`n" + ($fixes -join "`n") + "`n`n" }
+          if ($others) { $body += "### 📝 Others`n" + ($others -join "`n") + "`n`n" }
+          
+          $body | Set-Content changelog.md
+          echo "BODY_PATH=changelog.md" >> $env:GITHUB_OUTPUT
+
+      - name: Install Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Capture Screenshot
+        shell: pwsh
+        run: |
+          # Start a simple local server in background
+          Start-Process -FilePath "npx" -ArgumentList "http-server client -p 8080"
+          Start-Sleep -Seconds 3
+          
+          # Run playwright script to take screenshot
+          @'
+          const { chromium } = require('playwright');
+          (async () => {
+            const browser = await chromium.launch();
+            const page = await browser.newPage();
+            await page.setViewportSize({ width: 320, height: 500 });
+            await page.goto('http://localhost:8080');
+            await page.waitForTimeout(2000); // wait for animations
+            await page.screenshot({ path: 'screenshot.png' });
+            await browser.close();
+            process.exit(0);
+          })();
+          '@ | Set-Content capture.js
+          
+          node capture.js
+
+      - name: Rust setup
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Tauri build
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+        with:
+          tagName: v${{ steps.version.outputs.VERSION }}
+          releaseName: "Arch Radio v${{ steps.version.outputs.VERSION }}"
+          releaseBodyPath: changelog.md
+          releaseDraft: false
+          prerelease: false
+          includeUpdaterJson: true
+          includeRelease: true
+          args: --verbose
+
+      - name: Upload Screenshot to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.VERSION }}
+          files: screenshot.png
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

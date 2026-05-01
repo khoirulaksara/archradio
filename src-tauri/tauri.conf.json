@@ -3,9 +3,11 @@
   "productName": "Arch Radio",
   "version": "1.0.0",
   "identifier": "com.radio.arch",
+
   "build": {
     "frontendDist": "../client"
   },
+
   "app": {
     "withGlobalTauri": true,
     "windows": [
@@ -26,6 +28,7 @@
       "csp": null
     }
   },
+
   "bundle": {
     "active": true,
     "targets": "all",
@@ -36,5 +39,14 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+
+  "updater": {
+    "active": true,
+    "endpoints": [
+      "https://github.com/khoirulaksara/archradio/releases/latest/download/latest.json"
+    ],
+    "dialog": false,
+    "pubkey": "RWRqJEOLOe2xtIdBIzoHtmcnm0tNjTe+C2DnUtd1Cfsq3NGqs8iwxZFa"
   }
 }
