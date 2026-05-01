@@ -27,8 +27,9 @@ jobs:
         id: version
         shell: pwsh
         run: |
-          $date = Get-Date -Format "yyyy.MM.dd"
-          $version = "${date}.${{ github.run_number }}"
+          $year = Get-Date -Format "yyyy"
+          $md = Get-Date -Format "Md"
+          $version = "${year}.${md}.${{ github.run_number }}"
           echo "VERSION=$version" >> $env:GITHUB_OUTPUT
           
           # Update tauri.conf.json
@@ -56,7 +57,9 @@ jobs:
           if ($others) { $body += "### 📝 Others`n" + ($others -join "`n") + "`n`n" }
           
           $body | Set-Content changelog.md
-          echo "BODY_PATH=changelog.md" >> $env:GITHUB_OUTPUT
+          $content = Get-Content changelog.md -Raw
+          $content = $content -replace "`n", "%0A" -replace "`r", ""
+          echo "BODY=$content" >> $env:GITHUB_OUTPUT
 
       - name: Rust setup
         uses: dtolnay/rust-toolchain@stable
@@ -70,7 +73,7 @@ jobs:
         with:
           tagName: v${{ steps.version.outputs.VERSION }}
           releaseName: "Arch Radio v${{ steps.version.outputs.VERSION }}"
-          releaseBodyPath: changelog.md
+          releaseBody: "${{ steps.changelog.outputs.BODY }}"
           releaseDraft: false
           prerelease: false
           includeUpdaterJson: true
