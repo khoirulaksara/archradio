@@ -1512,6 +1512,7 @@ let audio = new Audio()
 audio.crossOrigin = "anonymous";
 let hls = null
 let isPlaying = false
+let connectionTimeout = null;
 const fallbackImage = 'icon-128.png'
 let fallbackBase64 = null
 
@@ -2218,56 +2219,62 @@ function renderPage() {
   });
 
   sortedRadios.forEach((r) => {
-    const isActive = playingRadio && playingRadio.id === r.id;
-    const isFav = isFavorite(r.id);
+    // If multiple streams, render each as a separate item
+    const streamsToRender = (r.streams && r.streams.length > 1) ? r.streams : [ { url: r.stream } ];
     
-    // Status from local tracking
-    const statusVal = stationStatus[r.id];
-    let statusClass = 'unknown';
-    let statusLabel = 'Checking...';
-    
-    if (statusVal === 1) {
-      statusClass = 'online';
-      statusLabel = 'Online';
-    } else if (statusVal === 0) {
-      statusClass = 'offline';
-      statusLabel = 'Offline';
-    }
+    streamsToRender.forEach((stream, sIdx) => {
+      const streamLabel = (r.streams && r.streams.length > 1) ? ` #${sIdx + 1}` : "";
+      const isActive = playingRadio && playingRadio.id === r.id && playingRadio.currentStreamIndex === sIdx;
+      const isFav = isFavorite(r.id);
+      
+      // Status from local tracking
+      const statusVal = stationStatus[r.id];
+      let statusClass = 'unknown';
+      let statusLabel = 'Checking...';
+      
+      if (statusVal === 1) {
+        statusClass = 'online';
+        statusLabel = 'Online';
+      } else if (statusVal === 0) {
+        statusClass = 'offline';
+        statusLabel = 'Offline';
+      }
 
-    const div = document.createElement("div")
-    div.className = `item ${isActive ? 'active' : ''}`
-    
-    // Find index in ORIGINAL currentRadios for play()
-    const origIdx = currentRadios.findIndex(rad => rad && rad.id === r.id);
-    div.onclick = () => play(origIdx)
-    
-    const imgSrc = r.logo || fallbackImage;
-    const imgHtml = `<img src="${imgSrc}" loading="lazy" onload="this.style.opacity=1" onerror="this.src='${fallbackImage}'" style="opacity:0; transition: opacity 0.5s ease;">`
-    const heartFill = isFav ? 'currentColor' : 'none';
-    const heartColor = isFav ? 'var(--heart-color)' : 'currentColor';
-    
-    // Clean string for JSON
-    const radioJson = JSON.stringify(r).replace(/"/g, '&quot;');
-    
-    div.innerHTML = `
-      <div class="item-icon">${imgHtml}</div>
-      <div class="item-details">
-        <div style="display: flex; align-items: center; gap: 6px;">
-          <div class="status-dot ${statusClass}" title="${statusLabel}"></div>
-          <div class="item-name">${r.name || 'Unnamed Station'}</div>
+      const div = document.createElement("div")
+      div.className = `item ${isActive ? 'active' : ''}`
+      
+      // Find index in ORIGINAL currentRadios for play()
+      const origIdx = currentRadios.findIndex(rad => rad && rad.id === r.id);
+      div.onclick = () => play(origIdx, sIdx)
+      
+      const imgSrc = r.logo || fallbackImage;
+      const imgHtml = `<img src="${imgSrc}" loading="lazy" onload="this.style.opacity=1" onerror="this.src='${fallbackImage}'" style="opacity:0; transition: opacity 0.5s ease;">`
+      const heartFill = isFav ? 'currentColor' : 'none';
+      const heartColor = isFav ? 'var(--heart-color)' : 'currentColor';
+      
+      // Clean string for JSON
+      const radioJson = JSON.stringify(r).replace(/"/g, '&quot;');
+      
+      div.innerHTML = `
+        <div class="item-icon">${imgHtml}</div>
+        <div class="item-details">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <div class="status-dot ${statusClass}" title="${statusLabel}"></div>
+            <div class="item-name">${r.name}${streamLabel}</div>
+          </div>
+          <div class="item-status">Playing</div>
         </div>
-        <div class="item-status">Playing</div>
-      </div>
-      <div class="bars">
-        <div class="bar"></div>
-        <div class="bar"></div>
-        <div class="bar"></div>
-      </div>
-      <button class="fav-btn ${isFav ? 'favorited' : ''}" onclick="toggleFavorite(event, ${radioJson})">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="${heartFill}" stroke="${heartColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
-      </button>
-    `
-    list.appendChild(div)
+        <div class="bars">
+          <div class="bar"></div>
+          <div class="bar"></div>
+          <div class="bar"></div>
+        </div>
+        <button class="fav-btn ${isFav ? 'favorited' : ''}" onclick="toggleFavorite(event, ${radioJson})">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="${heartFill}" stroke="${heartColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+        </button>
+      `
+      list.appendChild(div)
+    });
   })
 
   const pageInfo = document.getElementById("pageInfo");
@@ -2284,16 +2291,16 @@ async function changePage(dir) {
   }
 }
 
-async function play(index) {
+async function play(index, streamIndex = 0) {
   const r = currentRadios[index]
   
-  if (playingRadio && playingRadio.id === r.id && isPlaying) {
+  if (playingRadio && playingRadio.id === r.id && playingRadio.currentStreamIndex === streamIndex && isPlaying) {
     toggle()
     return
   }
   
-  const firstStream = (r.streams && r.streams.length > 0) ? r.streams[0] : {};
-  let streamUrl = firstStream.url || r.stream;
+  const targetStream = (r.streams && r.streams.length > streamIndex) ? r.streams[streamIndex] : {};
+  let streamUrl = targetStream.url || r.stream;
   
   // SOLUSI: Resolve URL untuk stasiun yang menggunakan token/redirect (seperti Radiojar)
   if (streamUrl && (streamUrl.includes('radiojar.com') || streamUrl.includes('stream'))) {
@@ -2313,16 +2320,25 @@ async function play(index) {
     logo: r.logo,
     stream: streamUrl,
     streams: r.streams || [],
-    currentStreamIndex: 0,
+    currentStreamIndex: streamIndex,
     page: currentPage,
     indexOnPage: index,
-    bitrate: r.bitrate || firstStream.bitrate,
-    codec: r.codec || firstStream.codec
+    bitrate: r.bitrate || targetStream.bitrate,
+    codec: r.codec || targetStream.codec
   }
   
   // Use the already defined streamUrl
   document.getElementById("nowSubtitle").innerText = "Connecting..."
   
+  // Start connection timeout
+  clearTimeout(connectionTimeout);
+  connectionTimeout = setTimeout(() => {
+    if (playingRadio && playingRadio.id === r.id && !audio.playing && isPlaying) {
+        console.warn("Connection timeout reached");
+        handleError(new Error("Connection timeout"));
+    }
+  }, 10000);
+
   if (hls) {
     hls.destroy()
     hls = null
@@ -2396,11 +2412,29 @@ function tryNextStream() {
   console.log(`Trying backup stream #${playingRadio.currentStreamIndex}: ${nextUrl}`);
   document.getElementById("nowSubtitle").innerText = "Switching to backup...";
   
-  audio.src = nextUrl;
-  audio.play().catch(err => {
-    console.error("Backup failed, trying next...", err);
-    tryNextStream();
-  });
+  // Support HLS in fallback
+  if (hls) { hls.destroy(); hls = null; }
+  
+  if (nextUrl.includes('.m3u8') && Hls.isSupported()) {
+    hls = new Hls();
+    hls.loadSource(nextUrl);
+    hls.attachMedia(audio);
+    hls.on(Hls.Events.MANIFEST_PARSED, () => audio.play().catch(err => tryNextStream()));
+  } else {
+    audio.src = nextUrl;
+    audio.play().catch(err => {
+      console.error("Backup failed, trying next...", err);
+      tryNextStream();
+    });
+  }
+
+  // Reset connection timeout for the next attempt
+  clearTimeout(connectionTimeout);
+  connectionTimeout = setTimeout(() => {
+    if (playingRadio && !audio.playing && isPlaying) {
+      handleError(new Error("Connection timeout"));
+    }
+  }, 10000);
 }
 
 function toggle(e) {
@@ -2602,6 +2636,7 @@ audio.addEventListener('waiting', () => {
 
 audio.addEventListener('playing', () => {
   isPlaying = true;
+  clearTimeout(connectionTimeout);
   document.getElementById("nowSubtitle").innerText = "Now playing";
   
   if (playingRadio) {
@@ -2663,6 +2698,17 @@ document.addEventListener('keydown', e => {
   if (e.key === 'F12') e.preventDefault();
   if (e.ctrlKey && e.key === 'U') e.preventDefault();
 });
+
+// Handle Tray Events
+if (window.__TAURI__ && window.__TAURI__.event) {
+  window.__TAURI__.event.listen('tray-play-pause', () => toggle());
+  window.__TAURI__.event.listen('tray-next', () => next());
+  window.__TAURI__.event.listen('tray-prev', () => prev());
+  window.__TAURI__.event.listen('tray-toggle-compact', () => {
+    const isNowCompact = document.body.classList.contains('compact-mode');
+    toggleCompactMode(!isNowCompact);
+  });
+}
 </script>
 
 </body>

@@ -7,7 +7,7 @@ mod transform;
 use tauri::{
     menu::{Menu, MenuItem},
     tray::TrayIconBuilder,
-    Manager,
+    Emitter, Manager,
 };
 
 #[tauri::command]
@@ -70,6 +70,7 @@ async fn proxy_get(url: String) -> Result<Vec<u8>, String> {
 async fn resolve_url(url: String) -> Result<String, String> {
     let client = reqwest::Client::builder()
         .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        .timeout(std::time::Duration::from_secs(10))
         .build()
         .map_err(|e| e.to_string())?;
         
@@ -198,14 +199,36 @@ pub fn run() {
         .setup(|app| {
             let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let show_i = MenuItem::with_id(app, "show", "Show Radio", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&show_i, &quit_i])?;
+            let play_i = MenuItem::with_id(app, "play_pause", "Play / Pause", true, None::<&str>)?;
+            let next_i = MenuItem::with_id(app, "next", "Next Station", true, None::<&str>)?;
+            let prev_i = MenuItem::with_id(app, "prev", "Previous Station", true, None::<&str>)?;
+            
+            let compact_i = MenuItem::with_id(app, "toggle_compact", "Compact Mode", true, None::<&str>)?;
+            
+            let menu = Menu::with_items(app, &[
+                &play_i, 
+                &prev_i, 
+                &next_i, 
+                &tauri::menu::PredefinedMenuItem::separator(app)?,
+                &compact_i,
+                &show_i, 
+                &tauri::menu::PredefinedMenuItem::separator(app)?,
+                &quit_i
+            ])?;
 
             let _tray = TrayIconBuilder::with_id("main")
                 .icon(app.default_window_icon().unwrap().clone())
                 .menu(&menu)
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "quit" => std::process::exit(0),
-                    "show" => if let Some(window) = app.get_webview_window("main") { let _ = window.show(); let _ = window.set_focus(); }
+                    "show" => if let Some(window) = app.get_webview_window("main") { 
+                        let _ = window.show(); 
+                        let _ = window.set_focus(); 
+                    },
+                    "play_pause" => { let _ = app.emit("tray-play-pause", ()); },
+                    "next" => { let _ = app.emit("tray-next", ()); },
+                    "prev" => { let _ = app.emit("tray-prev", ()); },
+                    "toggle_compact" => { let _ = app.emit("tray-toggle-compact", ()); },
                     _ => {}
                 })
                 .build(app)?;
