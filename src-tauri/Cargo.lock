@@ -76,8 +76,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
 
 [[package]]
-name = "app"
-version = "0.1.0"
+name = "archradio"
+version = "1.0.0"
 dependencies = [
  "log",
  "reqwest 0.12.28",
@@ -86,6 +86,7 @@ dependencies = [
  "tauri",
  "tauri-build",
  "tauri-plugin-autostart",
+ "tauri-plugin-geolocation",
  "tauri-plugin-log",
  "tauri-plugin-notification",
  "tokio",
@@ -1254,7 +1255,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "07bbe89c50d7a535e539b8c17bc0b49bdb77747034daa8087407d655f3f7cc1d"
 dependencies = [
  "futures-core",
- "futures-sink",
 ]
 
 [[package]]
@@ -3391,9 +3391,7 @@ dependencies = [
  "base64 0.22.1",
  "bytes",
  "encoding_rs",
- "futures-channel",
  "futures-core",
- "futures-util",
  "h2",
  "http",
  "http-body",
@@ -4395,6 +4393,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "459383cebc193cdd03d1ba4acc40f2c408a7abce419d64bdcd2d745bc2886f70"
 dependencies = [
  "auto-launch",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-plugin",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "tauri-plugin-geolocation"
+version = "2.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0366e51823ad001ff1a47f116cd34ddfea3d94ebeb2309caf42e290dec27e0a6"
+dependencies = [
+ "log",
  "serde",
  "serde_json",
  "tauri",

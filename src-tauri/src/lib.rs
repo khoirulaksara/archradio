@@ -1,21 +1,24 @@
 // Arch Radio - Copyright (c) 2026 Khoirul Aksara - MIT License
 
+mod models;
+mod fetch;
+mod transform;
+
 use tauri::{
     menu::{Menu, MenuItem},
-    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    Emitter, Manager,
+    tray::TrayIconBuilder,
+    Manager,
 };
-use tauri_plugin_autostart::MacosLauncher;
-use reqwest::header::{HeaderMap, HeaderValue};
 
 #[tauri::command]
 async fn fetch_metadata(url: String) -> Result<String, String> {
-    let client = reqwest::Client::new();
-    let mut headers = HeaderMap::new();
-    headers.insert("Icy-MetaData", HeaderValue::from_static("1"));
-
+    let client = reqwest::Client::builder()
+        .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        .build()
+        .map_err(|e| e.to_string())?;
+    
     let mut response = client.get(&url)
-        .headers(headers)
+        .header("Icy-MetaData", "1")
         .send()
         .await
         .map_err(|e| e.to_string())?;
@@ -26,19 +29,15 @@ async fn fetch_metadata(url: String) -> Result<String, String> {
         .and_then(|v| v.parse::<usize>().ok());
 
     if let Some(interval) = metaint {
-        // Only read a limited chunk to avoid hanging
         let mut buffer = vec![0u8; interval + 512];
         let mut bytes_read = 0;
         
-        // We need to read synchronously or handle the stream
-        // For simplicity in this context, we take a slice
         while bytes_read < buffer.len() {
             let chunk = response.chunk().await.map_err(|e| e.to_string())?;
             if let Some(c) = chunk {
                 let to_copy = std::cmp::min(c.len(), buffer.len() - bytes_read);
                 buffer[bytes_read..bytes_read + to_copy].copy_from_slice(&c[..to_copy]);
                 bytes_read += to_copy;
-                if bytes_read >= buffer.len() { break; }
             } else { break; }
         }
 
@@ -56,8 +55,26 @@ async fn fetch_metadata(url: String) -> Result<String, String> {
             }
         }
     }
-    
-    Err("No metadata found".into())
+    Err("No metadata".into())
+}
+
+#[tauri::command]
+async fn proxy_get(url: String) -> Result<Vec<u8>, String> {
+    let client = reqwest::Client::new();
+    let res = client.get(&url).send().await.map_err(|e| e.to_string())?;
+    let bytes = res.bytes().await.map_err(|e| e.to_string())?;
+    Ok(bytes.to_vec())
+}
+
+#[tauri::command]
+async fn resolve_url(url: String) -> Result<String, String> {
+    let client = reqwest::Client::builder()
+        .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        .build()
+        .map_err(|e| e.to_string())?;
+        
+    let res = client.get(&url).send().await.map_err(|e| e.to_string())?;
+    Ok(res.url().to_string())
 }
 
 #[tauri::command]
@@ -69,108 +86,92 @@ fn update_tray_tooltip(app: tauri::AppHandle, title: String) {
 
 #[tauri::command]
 fn set_widget_mode(window: tauri::Window, enabled: bool) {
-    // Temporarily allow resizing to change the boundaries
     let _ = window.set_resizable(true);
-    let _ = window.set_min_size(None::<tauri::LogicalSize<f64>>);
-    let _ = window.set_max_size(None::<tauri::LogicalSize<f64>>);
-
     if enabled {
-        let logical_width = 300.0;
-        let logical_height = 65.0; // Increased height for stacked layout
-        
-        let _ = window.set_size(tauri::LogicalSize::new(logical_width, logical_height));
-        let _ = window.set_min_size(Some(tauri::LogicalSize::new(logical_width, logical_height)));
-        let _ = window.set_max_size(Some(tauri::LogicalSize::new(logical_width, logical_height)));
-        
-        if let Ok(Some(monitor)) = window.current_monitor() {
+        let _ = window.set_size(tauri::LogicalSize::new(300.0, 66.0));
+        let _ = window.set_skip_taskbar(true);
+        let _ = window.set_always_on_top(true);
+        let _ = window.set_decorations(false); // No OS controls
+
+        // Position at bottom right
+        if let Ok(Some(monitor)) = window.primary_monitor() {
+            let screen_size = monitor.size();
             let scale_factor = monitor.scale_factor();
-            let work_area = monitor.work_area();
+            let window_size = tauri::LogicalSize::new(300.0, 66.0).to_physical::<u32>(scale_factor);
             
-            let physical_width = (logical_width * scale_factor).round() as i32;
-            let physical_height = (logical_height * scale_factor).round() as i32;
+            // Adjust X to be on the right, Y to be above taskbar (increased offset to 85px)
+            let x = screen_size.width - window_size.width - 20;
+            let y = screen_size.height - window_size.height - 57; 
             
-            let x = work_area.position.x + (work_area.size.width as i32) - physical_width - 10;
-            let y = work_area.position.y + (work_area.size.height as i32) - physical_height - 10;
-            
-            let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
-            let _ = window.set_skip_taskbar(true);
+            let _ = window.set_position(tauri::PhysicalPosition::new(x as i32, y as i32));
         }
     } else {
-        let _ = window.set_size(tauri::LogicalSize::new(320.0, 500.0));
-        let _ = window.set_min_size(Some(tauri::LogicalSize::new(320.0, 500.0)));
-        let _ = window.set_max_size(Some(tauri::LogicalSize::new(320.0, 500.0)));
+        let _ = window.set_size(tauri::LogicalSize::new(320.0, 560.0));
         let _ = window.center();
         let _ = window.set_skip_taskbar(false);
+        let _ = window.set_always_on_top(false);
+        let _ = window.set_decorations(false); // Also no OS controls in normal mode
     }
-    
-    // Lock resizing again so user cannot manually drag edges
     let _ = window.set_resizable(false);
+}
+
+#[tauri::command]
+async fn get_indonesia_stations(params: String) -> Result<Vec<models::Station>, String> {
+    // Fetch directly from custom API with params
+    match fetch::fetch_stations(&params).await {
+        Ok(stations) => {
+            let prepared = transform::prepare_stations(stations);
+            Ok(prepared)
+        }
+        Err(e) => Err(e)
+    }
+}
+
+#[tauri::command]
+async fn get_cities() -> Result<serde_json::Value, String> {
+    let client = reqwest::Client::new();
+    let res = client.get("https://api-radio.kalingga.workers.dev/?group=city")
+        .send().await.map_err(|e| e.to_string())?;
+    let json = res.json::<serde_json::Value>().await.map_err(|e| e.to_string())?;
+    Ok(json)
+}
+
+#[tauri::command]
+async fn detect_ip_location() -> Result<serde_json::Value, String> {
+    let client = reqwest::Client::new();
+    let res = client.get("http://ip-api.com/json/")
+        .send().await.map_err(|e| e.to_string())?;
+    let json = res.json::<serde_json::Value>().await.map_err(|e| e.to_string())?;
+    Ok(json)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_autostart::init(
-            MacosLauncher::LaunchAgent,
-            Some(vec![]),
-        ))
-        .invoke_handler(tauri::generate_handler![fetch_metadata, update_tray_tooltip, set_widget_mode])
+        .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, Some(vec![])))
+        .plugin(tauri_plugin_geolocation::init())
+        .invoke_handler(tauri::generate_handler![
+            fetch_metadata, 
+            update_tray_tooltip, 
+            set_widget_mode, 
+            proxy_get,
+            resolve_url,
+            get_indonesia_stations,
+            get_cities,
+            detect_ip_location
+        ])
         .setup(|app| {
-            if cfg!(debug_assertions) {
-                app.handle().plugin(
-                    tauri_plugin_log::Builder::default()
-                        .level(log::LevelFilter::Info)
-                        .build(),
-                )?;
-            }
-
             let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-            let show_i = MenuItem::with_id(app, "show", "Show Archangel Radio", true, None::<&str>)?;
-            let play_i = MenuItem::with_id(app, "play_pause", "Play / Pause", true, None::<&str>)?;
-            let next_i = MenuItem::with_id(app, "next", "Next Station", true, None::<&str>)?;
-            let prev_i = MenuItem::with_id(app, "prev", "Previous Station", true, None::<&str>)?;
-            
-            let sep = tauri::menu::PredefinedMenuItem::separator(app)?;
-            let menu = Menu::with_items(app, &[&show_i, &sep, &play_i, &next_i, &prev_i, &sep, &quit_i])?;
+            let show_i = MenuItem::with_id(app, "show", "Show Radio", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&show_i, &quit_i])?;
 
             let _tray = TrayIconBuilder::with_id("main")
                 .icon(app.default_window_icon().unwrap().clone())
-                .tooltip("Arch Radio")
                 .menu(&menu)
                 .on_menu_event(|app, event| match event.id.as_ref() {
-                    "quit" => {
-                        std::process::exit(0);
-                    }
-                    "show" => {
-                        if let Some(window) = app.get_webview_window("main") {
-                            let _ = window.show();
-                            let _ = window.set_focus();
-                        }
-                    }
-                    "play_pause" => {
-                        let _ = app.emit("tray-play-pause", ());
-                    }
-                    "next" => {
-                        let _ = app.emit("tray-next", ());
-                    }
-                    "prev" => {
-                        let _ = app.emit("tray-prev", ());
-                    }
+                    "quit" => std::process::exit(0),
+                    "show" => if let Some(window) = app.get_webview_window("main") { let _ = window.show(); let _ = window.set_focus(); }
                     _ => {}
-                })
-                .on_tray_icon_event(|tray, event| {
-                    if let TrayIconEvent::Click {
-                        button: MouseButton::Left,
-                        button_state: MouseButtonState::Up,
-                        ..
-                    } = event
-                    {
-                        let app = tray.app_handle();
-                        if let Some(window) = app.get_webview_window("main") {
-                            let _ = window.show();
-                            let _ = window.set_focus();
-                        }
-                    }
                 })
                 .build(app)?;
 

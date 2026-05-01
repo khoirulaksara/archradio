@@ -1,10 +1,10 @@
 [package]
-name = "app"
-version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
-license = ""
-repository = ""
+name = "archradio"
+version = "1.0.0"
+description = "A simple application for listening to radio"
+authors = ["Khoirul Aksara"]
+license = "MIT"
+repository = "https://github.com/khoirulaksara/archradio"
 edition = "2021"
 rust-version = "1.77.2"
 
@@ -24,7 +24,8 @@ log = "0.4"
 tauri = { version = "2.10.3", features = ["tray-icon"] }
 tauri-plugin-log = "2"
 tauri-plugin-autostart = "2"
-reqwest = { version = "0.12", features = ["blocking"] }
+reqwest = { version = "0.12", features = ["json"] }
 tokio = { version = "1", features = ["full"] }
 window-vibrancy = "0.6.0"
 tauri-plugin-notification = "2"
+tauri-plugin-geolocation = "2"

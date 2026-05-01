@@ -19,6 +19,7 @@
     "core:window:allow-primary-monitor",
     "core:window:allow-set-resizable",
     "autostart:allow-enable",
-    "autostart:allow-disable"
+    "autostart:allow-disable",
+    "geolocation:allow-get-current-position"
   ]
 }

@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Arch Radio",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "identifier": "com.radio.arch",
   "build": {
     "frontendDist": "../client"
@@ -18,7 +18,8 @@
         "fullscreen": false,
         "decorations": false,
         "alwaysOnTop": true,
-        "transparent": true
+        "transparent": true,
+        "userAgent": "Arch Radio"
       }
     ],
     "security": {
