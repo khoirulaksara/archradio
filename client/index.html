@@ -145,6 +145,34 @@
     border-color: var(--primary-color);
   }
 
+  .search-wrapper {
+    position: relative;
+    flex: 1;
+    display: flex;
+    align-items: center;
+  }
+
+  .clear-btn {
+    position: absolute;
+    right: 8px;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s;
+    -webkit-app-region: no-drag;
+  }
+
+  .clear-btn:hover {
+    color: var(--text-main);
+    background: var(--surface-hover);
+  }
+
   .list-container {
     flex: 1;
     display: flex;
@@ -1319,7 +1347,12 @@
 </div>
 
 <div class="search-container" id="searchContainer">
-  <input type="text" class="search-input" id="searchInput" placeholder="Search radio stations..." onkeyup="handleSearch(event)">
+  <div class="search-wrapper">
+    <input type="text" class="search-input" id="searchInput" placeholder="Search radio stations..." onkeyup="handleSearch(event)" autocomplete="off">
+    <button class="clear-btn" id="clearSearchBtn" onclick="clearSearch()" title="Clear Search">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+    </button>
+  </div>
 </div>
 
 <div class="filter-bar" id="filterBar" style="padding: 0 16px 10px; margin-top: 5px;">
@@ -1921,6 +1954,9 @@ function toggleFavoriteCurrent(e) {
 
 let searchTimeout = null;
 function handleSearch(e) {
+  const clearBtn = document.getElementById("clearSearchBtn");
+  if (clearBtn) clearBtn.style.display = e.target.value ? "flex" : "none";
+
   if (e.key === "Enter") {
     clearTimeout(searchTimeout);
     executeSearch(e.target.value);
@@ -1930,6 +1966,15 @@ function handleSearch(e) {
       executeSearch(e.target.value);
     }, 600);
   }
+}
+
+function clearSearch() {
+  const input = document.getElementById("searchInput");
+  input.value = "";
+  const clearBtn = document.getElementById("clearSearchBtn");
+  if (clearBtn) clearBtn.style.display = "none";
+  executeSearch("");
+  input.focus();
 }
 
 async function executeSearch(query) {
