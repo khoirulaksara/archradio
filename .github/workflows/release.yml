@@ -10,10 +10,7 @@ jobs:
     permissions:
       contents: write
     runs-on: windows-latest
-    env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -27,6 +24,9 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Rust setup
+        uses: dtolnay/rust-toolchain@stable
+
       - name: Generate Version
         id: version
         shell: pwsh
@@ -35,12 +35,12 @@ jobs:
           $minor = (Get-Date).Month
           $version = "$major.$minor.${{ github.run_number }}"
           echo "VERSION=$version" >> $env:GITHUB_OUTPUT
-          
+
           # Update tauri.conf.json
           $config = Get-Content src-tauri/tauri.conf.json | ConvertFrom-Json
           $config.version = $version
           $config | ConvertTo-Json -Depth 10 | Set-Content src-tauri/tauri.conf.json
-          
+
           # Update Cargo.toml
           $cargo = Get-Content src-tauri/Cargo.toml
           $cargo = $cargo -replace '^version = ".*"', "version = `"$version`""
@@ -54,97 +54,93 @@ jobs:
           $feats = $commits | Where-Object { $_ -match '^feat' }
           $fixes = $commits | Where-Object { $_ -match '^fix' }
           $others = $commits | Where-Object { $_ -notmatch '^(feat|fix)' }
-          
+
           $body = "## Release v${{ steps.version.outputs.VERSION }}`n`n"
           if ($feats) { $body += "### 🚀 Features`n" + ($feats -join "`n") + "`n`n" }
           if ($fixes) { $body += "### 🛠️ Fixes`n" + ($fixes -join "`n") + "`n`n" }
           if ($others) { $body += "### 📝 Others`n" + ($others -join "`n") + "`n`n" }
-          
+
           $body | Set-Content changelog.md
           $content = Get-Content changelog.md -Raw
           $content = $content -replace "`n", "%0A" -replace "`r", ""
           echo "BODY=$content" >> $env:GITHUB_OUTPUT
 
-      - name: Rust setup
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Build and Release
-        id: tauri_build
-        uses: tauri-apps/tauri-action@v0
-        with:
-          tagName: v${{ steps.version.outputs.VERSION }}
-          releaseName: "Arch Radio v${{ steps.version.outputs.VERSION }}"
-          releaseBody: "${{ steps.changelog.outputs.BODY }}"
-          releaseDraft: false
-          prerelease: false
-          includeRelease: true
-          args: --verbose
-
-      - name: Generate latest.json
+      - name: Build Tauri App
         shell: pwsh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+        run: |
+          echo "Signing env check: KEY length=$($env:TAURI_SIGNING_PRIVATE_KEY.Length)"
+          cd src-tauri
+          cargo tauri build --verbose
+          cd ..
+
+      - name: Collect Artifacts and Create Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $version = "${{ steps.version.outputs.VERSION }}"
-          echo "Looking for signatures in src-tauri/target/release/bundle/ ..."
-          
-          # Find any .sig file recursively in the whole workspace
-          $sigFiles = Get-ChildItem -Path "." -Filter "*.sig" -Recurse
-          if ($null -eq $sigFiles) {
-              Write-Error "No .sig files found! Build might have skipped signing."
-              exit 1
+          $tag = "v$version"
+          $bundleDir = "src-tauri/target/release/bundle"
+
+          # List all files for debugging
+          Get-ChildItem -Path $bundleDir -Recurse | Select-Object FullName | Format-List
+
+          # Find signature files
+          $sigFiles = Get-ChildItem -Path $bundleDir -Filter "*.sig" -Recurse | Where-Object { $_.Name -notlike "*.zip.sig" }
+          echo "Found $($sigFiles.Count) signature file(s)"
+
+          if ($sigFiles.Count -eq 0) {
+            Write-Error "No .sig files found! Signing failed."
+            exit 1
           }
-          
-          $sigFile = $sigFiles | Select-Object -First 1
-          $sigContent = Get-Content $sigFile.FullName
-          echo "Found signature: $($sigFile.Name)"
-          
-          # Find the corresponding installer file in the whole workspace
-          $installerFile = Get-ChildItem -Path "." -Filter ($sigFile.BaseName) -Recurse | Where-Object { $_.Extension -ne ".sig" -and $_.Extension -ne ".zip" } | Select-Object -First 1
-          if ($null -eq $installerFile) {
-              Write-Error "Could not find installer file for signature $($sigFile.Name)"
-              exit 1
-          }
-          
-          $fileName = $installerFile.Name
-          # GitHub replaces spaces with dots in release assets
-          $ghFileName = $fileName -replace " ", "."
-          echo "Installer name on GitHub: $ghFileName"
-          
-          # Format for Tauri v2 Updater JSON
-          $json = @{
-              version = $version
-              notes = "Release v$version"
-              pub_date = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
-              platforms = @{
-                  "windows-x86_64" = @{
-                      signature = $sigContent
-                      url = "https://github.com/khoirulaksara/archradio/releases/download/v$version/$ghFileName"
-                  }
+
+          # Prefer MSI sig, fallback to NSIS sig
+          $msiSig = $sigFiles | Where-Object { $_.Name -like "*.msi.sig" } | Select-Object -First 1
+          $nsisExeSig = $sigFiles | Where-Object { $_.Name -like "*.exe.sig" } | Select-Object -First 1
+          $primarySig = if ($msiSig) { $msiSig } else { $nsisExeSig }
+          $sigContent = Get-Content $primarySig.FullName -Raw
+
+          # Find MSI installer
+          $msiFile = Get-ChildItem -Path $bundleDir -Filter "*.msi" -Recurse | Where-Object { $_.Name -notlike "*.zip" } | Select-Object -First 1
+          $nsisFile = Get-ChildItem -Path $bundleDir -Filter "*-setup.exe" -Recurse | Select-Object -First 1
+
+          echo "MSI: $($msiFile.FullName)"
+          echo "NSIS: $($nsisFile.FullName)"
+          echo "SIG: $($primarySig.FullName)"
+
+          # Determine URL filename (GitHub replaces spaces with dots)
+          $msiGhName = $msiFile.Name -replace " ", "."
+          $msiUrl = "https://github.com/khoirulaksara/archradio/releases/download/$tag/$msiGhName"
+
+          # Build latest.json
+          $pub_date = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
+          $latestJson = @{
+            version  = $version
+            notes    = "Release $tag"
+            pub_date = $pub_date
+            platforms = @{
+              "windows-x86_64" = @{
+                signature = $sigContent.Trim()
+                url       = $msiUrl
               }
-          }
-          $json | ConvertTo-Json -Depth 10 | Set-Content latest.json
-          
-          # Copy the .sig file for manual upload as well
-          Copy-Item $sigFile.FullName "Arch-Radio.sig"
+            }
+          } | ConvertTo-Json -Depth 10
+          $latestJson | Set-Content latest.json
+          echo "Generated latest.json:"
+          cat latest.json
 
-      - name: Prepare Portable Version
-        shell: pwsh
-        run: |
-          $name = "Arch Radio"
-          $exePath = "src-tauri/target/release/${name}.exe"
-          if (Test-Path $exePath) {
-            Copy-Item $exePath "Arch-Radio-Portable.exe"
-          } else {
-            $exePath = Get-ChildItem "src-tauri/target/release/*.exe" | Select-Object -First 1
-            Copy-Item $exePath.FullName "Arch-Radio-Portable.exe"
-          }
+          # Copy portable exe
+          $portableExe = "src-tauri/target/release/archradio.exe"
+          Copy-Item $portableExe "Arch-Radio-Portable.exe" -ErrorAction SilentlyContinue
 
-      - name: Upload Assets to Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ steps.version.outputs.VERSION }}
-          files: |
-            latest.json
-            Arch-Radio.sig
-            Arch-Radio-Portable.exe
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Create release
+          gh release create $tag `
+            --title "Arch Radio $tag" `
+            --notes-file changelog.md `
+            $msiFile.FullName `
+            $nsisFile.FullName `
+            "latest.json" `
+            "Arch-Radio-Portable.exe"
