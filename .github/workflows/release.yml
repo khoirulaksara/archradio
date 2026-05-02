@@ -147,8 +147,8 @@ jobs:
           gh release create $tag `
             --title "Arch Radio $tag" `
             --generate-notes `
-
             $msiFile.FullName `
             $nsisFile.FullName `
             "latest.json" `
             "Arch-Radio-Portable.exe"
+
