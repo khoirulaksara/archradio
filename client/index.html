@@ -1119,7 +1119,7 @@
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
     backdrop-filter: blur(10px) !important;
     -webkit-backdrop-filter: blur(10px) !important;
-    border-radius: 12px !important;
+    border-radius: 8px !important;
     overflow: hidden;
     transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
   }
@@ -1127,7 +1127,7 @@
   body.compact-mode:hover {
     background: rgba(15, 15, 20, 0.9) !important;
     border-color: var(--primary-color) !important;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 15px var(--primary-color);
+    /* box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 0 0 1px var(--primary-color); */
   }
 
   body.compact-mode .header,
@@ -1413,13 +1413,13 @@
     right: -2px;
     background: #fbbf24; /* yellow-400 */
     color: #1e1b4b; /* dark indigo for contrast */
-    width: 14px;
-    height: 14px;
+    width: 12px;
+    height: 12px;
     border-radius: 50%;
     display: none; /* hidden by default */
     align-items: center;
     justify-content: center;
-    font-size: 10px;
+    font-size: 7px;
     font-weight: 800;
     border: 1.5px solid #1a1a2e;
     box-shadow: 0 0 8px rgba(251, 191, 36, 0.4);
@@ -2685,6 +2685,14 @@ async function updateMediaSession(radio) {
     ]
   });
 
+  // Update Rust SMTC (Arch Radio session)
+  window.__TAURI__.core.invoke('update_smtc_metadata', {
+    title: radio.name,
+    artist: radio.city || "Indonesia",
+    imageUrl: radio.logo
+  }).catch(console.error);
+
+
   navigator.mediaSession.setActionHandler("play", () => toggle());
   navigator.mediaSession.setActionHandler("pause", () => toggle());
   navigator.mediaSession.setActionHandler("previoustrack", () => prev());
@@ -2916,12 +2924,20 @@ async function pollMetadata() {
           navigator.mediaSession.metadata = new MediaMetadata({
             title: meta, // Current Song
             artist: playingRadio.name, // Station Name
-            album: 'Archangel Radio',
+            album: 'Arch Radio',
             artwork: [
               { src: artSrc, sizes: '128x128', type: 'image/png' },
               { src: artSrc, sizes: '512x512', type: 'image/png' }
             ]
           });
+
+          // Sync with Rust SMTC
+          window.__TAURI__.core.invoke('update_smtc_metadata', {
+            title: meta,
+            artist: playingRadio.name,
+            imageUrl: playingRadio.logo
+          }).catch(console.error);
+
         });
       }
     }
@@ -2974,7 +2990,9 @@ audio.addEventListener('playing', () => {
   }
 
   updatePlayerUI();
+  if (window.__TAURI__) window.__TAURI__.core.invoke('update_smtc_status', { playing: true });
 });
+
 
 audio.addEventListener('error', () => {
   console.error("Audio stream error");
@@ -2982,8 +3000,13 @@ audio.addEventListener('error', () => {
   handleError(new Error("Audio stream failed"));
 });
 
-audio.onpause = () => { isPlaying = false; updatePlayerUI(); }
+audio.onpause = () => { 
+  isPlaying = false; 
+  updatePlayerUI(); 
+  if (window.__TAURI__) window.__TAURI__.core.invoke('update_smtc_status', { playing: false });
+}
 audio.onended = () => { next(); }
+
 
 // Initialize settings and window state on load
 setTimeout(() => {
@@ -3025,7 +3048,14 @@ if (window.__TAURI__ && window.__TAURI__.event) {
     const isNowCompact = document.body.classList.contains('compact-mode');
     toggleCompactMode(!isNowCompact);
   });
+
+  // SMTC Events
+  window.__TAURI__.event.listen('smtc-play', () => toggle());
+  window.__TAURI__.event.listen('smtc-pause', () => toggle());
+  window.__TAURI__.event.listen('smtc-next', () => next());
+  window.__TAURI__.event.listen('smtc-prev', () => prev());
 }
+
 </script>
 
 </body>

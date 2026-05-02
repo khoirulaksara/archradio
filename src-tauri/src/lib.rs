@@ -3,6 +3,8 @@
 mod models;
 mod fetch;
 mod transform;
+pub mod smtc;
+
 
 use tauri::{
     menu::{Menu, MenuItem},
@@ -195,7 +197,11 @@ pub fn run() {
             resolve_url,
             get_indonesia_stations,
             get_cities,
-            detect_ip_location
+            detect_ip_location,
+            smtc::update_smtc_metadata,
+            smtc::update_smtc_status
+
+
         ])
         .setup(|app| {
             let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
@@ -233,8 +239,12 @@ pub fn run() {
                     _ => {}
                 })
                 .build(app)?;
+            
+            #[cfg(target_os = "windows")]
+            smtc::init_smtc(app.handle().clone());
 
             Ok(())
+
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
