@@ -3,13 +3,22 @@ use windows::{
     Media::Playback::MediaPlayer,
     Media::{MediaPlaybackType, MediaPlaybackStatus},
     Foundation::{Uri, TypedEventHandler},
-    Storage::Streams::RandomAccessStreamReference,
+    Storage::Streams::{RandomAccessStreamReference, DataWriter, InMemoryRandomAccessStream},
     Media::SystemMediaTransportControlsButtonPressedEventArgs,
+
 };
 use std::sync::OnceLock;
 use tauri::{AppHandle, Emitter};
 
+
+
 static PLAYER: OnceLock<MediaPlayer> = OnceLock::new();
+static FALLBACK_STREAM: OnceLock<InMemoryRandomAccessStream> = OnceLock::new(); // Simpan wadah datanya
+static FALLBACK_THUMBNAIL: OnceLock<RandomAccessStreamReference> = OnceLock::new(); // Simpan alamatnya
+const DEFAULT_ICON: &[u8] = include_bytes!("../icons/128x128.png");
+
+
+
 
 pub fn init_smtc(app: AppHandle) {
     let player = MediaPlayer::new().unwrap();
@@ -20,6 +29,22 @@ pub fn init_smtc(app: AppHandle) {
     smtc.SetIsPauseEnabled(true).unwrap();
     smtc.SetIsPreviousEnabled(true).unwrap();
     smtc.SetIsNextEnabled(true).unwrap();
+
+    // Persiapkan Fallback Thumbnail sekali saja di awal
+    if let Ok(stream) = InMemoryRandomAccessStream::new() {
+        let _ = FALLBACK_STREAM.set(stream.clone()); // WAJIB: Agar data tetap ada di memori
+
+        if let Ok(writer) = DataWriter::CreateDataWriter(&stream) {
+            let _ = writer.WriteBytes(DEFAULT_ICON);
+            let _ = writer.StoreAsync().and_then(|op| op.get());
+            let _ = writer.FlushAsync().and_then(|op| op.get());
+            let _ = stream.Seek(0);
+            if let Ok(stream_ref) = RandomAccessStreamReference::CreateFromStream(&stream) {
+                let _ = FALLBACK_THUMBNAIL.set(stream_ref);
+            }
+        }
+    }
+
 
     let updater = smtc.DisplayUpdater().unwrap();
     updater.SetType(MediaPlaybackType::Music).unwrap();
@@ -60,18 +85,33 @@ pub async fn update_smtc_metadata(title: String, artist: String, image_url: Opti
     if let Some(player) = PLAYER.get() {
         let smtc = player.SystemMediaTransportControls().map_err(|e| e.to_string())?;
         let updater = smtc.DisplayUpdater().map_err(|e| e.to_string())?;
-        let music = updater.MusicProperties().map_err(|e| e.to_string())?;
+        
+        // Bersihkan cache lama agar gambar baru terpicu tampil
+        let _ = updater.ClearAll();
+        let _ = updater.SetType(MediaPlaybackType::Music);
 
+        let music = updater.MusicProperties().map_err(|e| e.to_string())?;
         music.SetTitle(&HSTRING::from(title)).map_err(|e| e.to_string())?;
         music.SetArtist(&HSTRING::from(artist)).map_err(|e| e.to_string())?;
 
+        let mut thumbnail_set = false;
+
+        // 1. Coba ambil dari URL stasiun
         if let Some(url) = image_url {
-            if !url.is_empty() {
+            if !url.is_empty() && url.starts_with("http") {
                 if let Ok(uri) = Uri::CreateUri(&HSTRING::from(url)) {
                     if let Ok(stream_ref) = RandomAccessStreamReference::CreateFromUri(&uri) {
                         let _ = updater.SetThumbnail(&stream_ref);
+                        thumbnail_set = true;
                     }
                 }
+            }
+        }
+
+        // 2. Jika gagal/kosong, gunakan Fallback Logo Arch Radio (Persistent Memory Stream)
+        if !thumbnail_set {
+            if let Some(stream_ref) = FALLBACK_THUMBNAIL.get() {
+                let _ = updater.SetThumbnail(stream_ref);
             }
         }
 
@@ -79,6 +119,7 @@ pub async fn update_smtc_metadata(title: String, artist: String, image_url: Opti
     }
     Ok(())
 }
+
 
 #[tauri::command]
 pub fn update_smtc_status(playing: bool) {

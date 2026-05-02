@@ -37,3 +37,14 @@ radio-electron-backup/
 # Compiled Frontend (if applicable)
 # dist/
 ".tauri/" 
+
+# Utility and Scratch Files
+fetch-stations.js
+worker.js
+release.md
+konten.md
+latest.json
+Arch-Radio-Portable.exe
+*.key
+*.msi
+*.exe

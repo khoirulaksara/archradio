@@ -72,13 +72,55 @@ async fn proxy_get(url: String) -> Result<Vec<u8>, String> {
 async fn resolve_url(url: String) -> Result<String, String> {
     let client = reqwest::Client::builder()
         .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-        .timeout(std::time::Duration::from_secs(10))
+        .timeout(std::time::Duration::from_secs(8))
         .build()
         .map_err(|e| e.to_string())?;
         
     let res = client.get(&url).send().await.map_err(|e| e.to_string())?;
-    Ok(res.url().to_string())
+
+    // --- LOGIKA ROBUST UNTUK STREAM ---
+    let final_url = res.url().to_string();
+
+    // 2. Deteksi Universal Shoutcast/Icecast (Bukan cuma klikhost)
+    // Tanda-tandanya: Punya Port, Path kosong atau hanya '/', atau punya header ICY
+    let has_port = res.url().port().is_some();
+    let is_root = res.url().path() == "/" || res.url().path() == "";
+    let is_shoutcast = res.headers().contains_key("icy-metaint") || 
+                       res.headers().get("server").map(|v| v.to_str().unwrap_or("").to_lowercase().contains("shoutcast")).unwrap_or(false);
+
+    // Cek apakah ini file playlist
+    let is_pls = final_url.to_lowercase().ends_with(".pls") || 
+                 res.headers().get("content-type").map(|v| v.to_str().unwrap_or("").contains("scpls")).unwrap_or(false);
+    let is_m3u = final_url.to_lowercase().ends_with(".m3u") || 
+                 res.headers().get("content-type").map(|v| v.to_str().unwrap_or("").contains("mpegurl")).unwrap_or(false);
+    
+    if is_pls {
+        let text = res.text().await.unwrap_or_default();
+        for line in text.lines() {
+            if line.to_lowercase().starts_with("file1=") {
+                return Ok(line[6..].trim().to_string());
+            }
+        }
+    } else if is_m3u {
+        let text = res.text().await.unwrap_or_default();
+        for line in text.lines() {
+            let trimmed = line.trim();
+            if trimmed.starts_with("http") {
+                return Ok(trimmed.to_string());
+            }
+        }
+    }
+
+    let mut resolved = final_url;
+    if (is_shoutcast || (has_port && is_root)) && !resolved.contains(';') && !resolved.contains(".m3u8") {
+        resolved = if resolved.ends_with('/') { format!("{};", resolved) } else { format!("{}/;", resolved) };
+    }
+
+    Ok(resolved)
 }
+
+
+
 
 #[tauri::command]
 fn update_tray_tooltip(app: tauri::AppHandle, title: String) {
@@ -91,23 +133,27 @@ use std::sync::Mutex;
 
 struct AppState {
     last_normal_pos: Mutex<Option<tauri::PhysicalPosition<i32>>>,
+    is_aot_enabled: Mutex<bool>, // Simpan status pilihan user di sini
 }
 
+
 #[tauri::command]
-fn set_widget_mode(window: tauri::Window, state: tauri::State<AppState>, enabled: bool) {
-    let _ = window.set_resizable(true);
+async fn set_widget_mode(window: tauri::WebviewWindow, state: tauri::State<'_, AppState>, enabled: bool) -> Result<(), String> {
+
+
     if enabled {
-        // Save current position before shrinking
+        // Simpan posisi lama
         if let Ok(pos) = window.outer_position() {
             let mut last_pos = state.last_normal_pos.lock().unwrap();
             *last_pos = Some(pos);
         }
 
+        let _ = window.set_always_on_top(true); // Widget WAJIB AOT
+        let _ = window.set_decorations(false);
         let _ = window.set_size(tauri::LogicalSize::new(300.0, 66.0));
         let _ = window.set_skip_taskbar(true);
-        let _ = window.set_always_on_top(true);
-        let _ = window.set_decorations(false); // No OS controls
-
+        let _ = window.set_resizable(false);
+        
         // Position at bottom right for widget
         if let Ok(Some(monitor)) = window.primary_monitor() {
             let screen_size = monitor.size();
@@ -120,8 +166,18 @@ fn set_widget_mode(window: tauri::Window, state: tauri::State<AppState>, enabled
             let _ = window.set_position(tauri::PhysicalPosition::new(x as i32, y as i32));
         }
     } else {
-        // Restore size first
         let _ = window.set_size(tauri::LogicalSize::new(320.0, 560.0));
+        let _ = window.set_decorations(false);
+        let _ = window.set_skip_taskbar(false);
+        let _ = window.set_resizable(true);
+
+        // KUNCINYA DI SINI: Kembalikan AOT sesuai keinginan user sebelumnya
+        let user_aot_pref = *state.is_aot_enabled.lock().unwrap();
+        let _ = window.set_always_on_top(user_aot_pref); 
+
+
+
+
         
         // Restore position if we have it
         let last_pos = state.last_normal_pos.lock().unwrap();
@@ -130,13 +186,29 @@ fn set_widget_mode(window: tauri::Window, state: tauri::State<AppState>, enabled
         } else {
             let _ = window.center();
         }
-
-        let _ = window.set_skip_taskbar(false);
-        let _ = window.set_always_on_top(false);
-        let _ = window.set_decorations(false);
     }
-    let _ = window.set_resizable(false);
+    Ok(())
 }
+
+
+
+#[tauri::command]
+async fn set_always_on_top(
+    window: tauri::WebviewWindow, 
+    state: tauri::State<'_, AppState>, 
+    enabled: bool
+) -> Result<(), String> {
+    // Simpan preferensi user
+    let mut aot = state.is_aot_enabled.lock().unwrap();
+    *aot = enabled;
+    
+    let _ = window.set_always_on_top(enabled);
+    Ok(())
+}
+
+
+
+
 
 #[tauri::command]
 async fn get_indonesia_stations(params: String) -> Result<Vec<models::Station>, String> {
@@ -184,7 +256,11 @@ pub fn run() {
     set_aumid();
 
     tauri::Builder::default()
-        .manage(AppState { last_normal_pos: Mutex::new(None) })
+        .manage(AppState { 
+            last_normal_pos: Mutex::new(None),
+            is_aot_enabled: Mutex::new(false),
+        })
+
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, Some(vec![])))
         .plugin(tauri_plugin_geolocation::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
@@ -193,7 +269,9 @@ pub fn run() {
             fetch_metadata, 
             update_tray_tooltip, 
             set_widget_mode, 
+            set_always_on_top,
             proxy_get,
+
             resolve_url,
             get_indonesia_stations,
             get_cities,
@@ -235,7 +313,14 @@ pub fn run() {
                     "play_pause" => { let _ = app.emit("tray-play-pause", ()); },
                     "next" => { let _ = app.emit("tray-next", ()); },
                     "prev" => { let _ = app.emit("tray-prev", ()); },
-                    "toggle_compact" => { let _ = app.emit("tray-toggle-compact", ()); },
+                    "toggle_compact" => { 
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                        let _ = app.emit("tray-toggle-compact", ()); 
+                    },
+
                     _ => {}
                 })
                 .build(app)?;
@@ -243,7 +328,23 @@ pub fn run() {
             #[cfg(target_os = "windows")]
             smtc::init_smtc(app.handle().clone());
 
+            // FIX: Pastikan jendela selalu Frameless (tanpa bar ganda) setiap startup
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.set_decorations(false);
+                
+                let size = window.outer_size().unwrap_or_default();
+                if size.width < 400 && size.height < 150 {
+                    let _ = window.set_size(tauri::LogicalSize::new(320.0, 560.0));
+                    let _ = window.set_always_on_top(false);
+                    let _ = window.set_skip_taskbar(false);
+                    let _ = window.set_resizable(false);
+                    let _ = window.center();
+                }
+            }
+
+
             Ok(())
+
 
         })
         .run(tauri::generate_context!())

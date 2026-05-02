@@ -309,6 +309,21 @@
     animation-play-state: running;
   }
 
+  .loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-muted);
+    font-size: 14px;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+  }
+
+
   /* PREMIUM LOADER */
   .loader-container {
     display: flex;
@@ -966,6 +981,19 @@
     border-color: var(--primary-color);
     background: rgba(255, 255, 255, 0.1);
   }
+
+  .loading-option {
+    padding: 30px 20px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--text-muted);
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
   .settings-overlay {
     position: absolute;
     top: 0;
@@ -1448,7 +1476,110 @@
     animation: fadeIn 0.2s ease;
     border-radius: 12px;
   }
+
+  /* CUSTOM DIALOG MODAL */
+  .dialog-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 10000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.2s ease;
+  }
+  .dialog-backdrop.active {
+    display: flex;
+  }
+  .dialog-box {
+    background: var(--glass-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 24px;
+    width: 280px;
+    text-align: center;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    animation: modalPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .dialog-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: white;
+  }
+  .dialog-msg {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 24px;
+    line-height: 1.5;
+  }
+  .dialog-actions {
+    display: flex;
+    gap: 10px;
+  }
+  .dialog-btn {
+    flex: 1;
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .dialog-btn-cancel {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+  }
+  .dialog-btn-cancel:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+  }
+  .dialog-btn-confirm {
+    background: var(--primary-color);
+    border: none;
+    color: white;
+  }
+  .dialog-btn-confirm:hover {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+  }
+
+  /* PREMIUM TOAST NOTIFICATION */
+  .toast {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: rgba(15, 23, 42, 0.9);
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    z-index: 11000;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  .toast-icon {
+    color: var(--primary-color);
+  }
   </style>
+
+
 </head>
 
 <body>
@@ -1481,7 +1612,8 @@
 
 <div class="search-container" id="searchContainer">
   <div class="search-wrapper">
-    <input type="text" class="search-input" id="searchInput" placeholder="Search radio stations..." onkeyup="handleSearch(event)" autocomplete="off">
+    <input type="text" class="search-input" id="searchInput" placeholder="Search radio stations..." onkeyup="handleSearch(event)" autocomplete="off" spellcheck="false">
+
     <button class="clear-btn" id="clearSearchBtn" onclick="clearSearch()" title="Clear Search">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
     </button>
@@ -1491,14 +1623,16 @@
 <div class="filter-bar" id="filterBar" style="padding: 0 16px 10px; margin-top: 5px;">
   <!-- Custom Premium Dropdown -->
   <div class="custom-dropdown" id="cityDropdown" style="margin: 0 4px;">
-    <div class="dropdown-selected" onclick="toggleCityDropdown()">
+    <div class="dropdown-selected" onclick="toggleCityDropdown(event)">
+
       <span id="selectedCityLabel">All Cities</span>
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
     </div>
     <div class="dropdown-options" id="cityOptions">
       <div class="dropdown-search-box">
-        <input type="text" id="citySearchInput" placeholder="Find city..." onkeyup="filterCities(event)" onclick="event.stopPropagation()">
+        <input type="text" id="citySearchInput" placeholder="Find city..." onkeyup="filterCities(event)" onclick="event.stopPropagation()" autocomplete="off" spellcheck="false">
       </div>
+
       <div class="option" onclick="selectCity('', 'All Cities')">All Cities</div>
       <!-- Cities will be loaded here -->
     </div>
@@ -1589,14 +1723,12 @@
     
     <div class="setting-item">
       <div class="setting-text">
-        <div class="setting-name">Launch on Startup</div>
-        <div class="setting-desc">Automatically start Arch Radio when Windows boots</div>
+        <div class="setting-name">Reset Status Cache</div>
+        <div class="setting-desc">Clear online/offline history for all stations</div>
       </div>
-      <label class="toggle-switch">
-        <input type="checkbox" id="settingStartup" onchange="updateSettings()">
-        <span class="slider"></span>
-      </label>
+      <button class="page-btn" onclick="resetStationStatus()" style="color: #ef4444;">Reset</button>
     </div>
+
     
     <div class="setting-item">
       <div class="setting-text">
@@ -1604,7 +1736,8 @@
         <div class="setting-desc">Keep Arch Radio above other windows</div>
       </div>
       <label class="toggle-switch">
-        <input type="checkbox" id="settingOnTop" onchange="updateSettings()">
+        <input type="checkbox" id="settingAOT" onchange="updateSettings()">
+
         <span class="slider"></span>
       </label>
     </div>
@@ -1625,14 +1758,22 @@
         <div class="setting-name">Sleep Timer</div>
         <div class="setting-desc">Auto-close app in minutes</div>
       </div>
-      <select id="settingSleep" class="page-btn" style="width: 80px; padding: 4px;" onchange="updateSettings()">
-        <option value="0">Off</option>
-        <option value="15">15m</option>
-        <option value="30">30m</option>
-        <option value="60">60m</option>
-        <option value="90">90m</option>
-      </select>
+      <div class="custom-dropdown" id="sleepDropdown" style="width: 100px;">
+        <div class="dropdown-selected" onclick="toggleSleepDropdown(event)">
+          <span id="selectedSleepLabel">Off</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </div>
+        <div class="dropdown-options" id="sleepOptions">
+          <div class="option" onclick="selectSleep(0, 'Off')">Off</div>
+          <div class="option" onclick="selectSleep(15, '15m')">15m</div>
+          <div class="option" onclick="selectSleep(30, '30m') )">30m</div>
+          <div class="option" onclick="selectSleep(60, '60m')">60m</div>
+          <div class="option" onclick="selectSleep(90, '90m')">90m</div>
+          <div class="option" onclick="selectSleep(120, '120m')">120m</div>
+        </div>
+      </div>
     </div>
+
 
     <div class="about-section">
       <div class="about-title">Developed by Aksara</div>
@@ -1834,7 +1975,38 @@ function toggleNormalizer(enable) {
 let sleepTimer = null;
 let sleepEndTime = null;
 
+function toggleSleepDropdown(e) {
+  if (e) e.stopPropagation();
+  const options = document.getElementById("sleepOptions");
+  
+  // Close city dropdown if open
+  const cityOptions = document.getElementById("cityOptions");
+  if (cityOptions) cityOptions.classList.remove("show");
+  
+  options.classList.toggle("show");
+}
+
+function selectSleep(value, label) {
+  document.getElementById("selectedSleepLabel").innerText = label;
+  document.getElementById("sleepOptions").classList.remove("show");
+  
+  appSettings.sleep = value;
+  updateSettings();
+}
+
+
+
+// Close dropdowns on outside click
+document.addEventListener('click', () => {
+  const sleepOptions = document.getElementById("sleepOptions");
+  const cityOptions = document.getElementById("cityOptions");
+  if (sleepOptions) sleepOptions.classList.remove("show");
+  if (cityOptions) cityOptions.classList.remove("show");
+});
+
+
 function startSleepTimer(minutes) {
+
   if (sleepTimer) clearInterval(sleepTimer);
   if (minutes <= 0) {
     document.getElementById("sleepDisplay").style.display = "none";
@@ -1988,43 +2160,48 @@ window.windowControls = {
   }
 };
 
-// Tray Remote Control
-window.__TAURI__.event.listen('tray-play-pause', () => toggle());
-window.__TAURI__.event.listen('tray-next', () => next());
-window.__TAURI__.event.listen('tray-prev', () => prev());
-
 function applySettingsState() {
-  document.getElementById("settingTray").checked = appSettings.tray;
-  document.getElementById("settingStartup").checked = appSettings.startup;
-  document.getElementById("settingOnTop").checked = appSettings.onTop;
-  document.getElementById("settingNormalizer").checked = appSettings.normalizer;
-  document.getElementById("settingSleep").value = appSettings.sleep || 0;
+
+  const settings = appSettings;
   
-  toggleNormalizer(appSettings.normalizer);
-  startSleepTimer(appSettings.sleep || 0);
+  if(document.getElementById("settingTray")) document.getElementById("settingTray").checked = settings.tray;
+  if(document.getElementById("settingAOT")) document.getElementById("settingAOT").checked = settings.onTop;
+  if(document.getElementById("settingNormalizer")) document.getElementById("settingNormalizer").checked = settings.normalizer;
   
-  if (window.windowControls && window.windowControls.applySettings) {
-    window.windowControls.applySettings(appSettings);
+  // Update Sleep Dropdown Label
+  const sleepLabels = {0: 'Off', 15: '15m', 30: '30m', 60: '60m', 90: '90m', 120: '120m'};
+  if(document.getElementById("selectedSleepLabel")) {
+    document.getElementById("selectedSleepLabel").innerText = sleepLabels[settings.sleep] || 'Off';
+  }
+
+  toggleNormalizer(settings.normalizer);
+
+  startSleepTimer(settings.sleep || 0);
+  
+  // Panggil Rust untuk sinkronisasi state Always on Top
+  if (window.__TAURI__) {
+    window.__TAURI__.core.invoke('set_always_on_top', { 
+      enabled: settings.onTop 
+    }).catch(console.error);
   }
 }
 
 function updateSettings() {
   appSettings = {
     tray: document.getElementById("settingTray").checked,
-    startup: document.getElementById("settingStartup").checked,
-    onTop: document.getElementById("settingOnTop").checked,
+    onTop: document.getElementById("settingAOT").checked,
     normalizer: document.getElementById("settingNormalizer").checked,
-    sleep: parseInt(document.getElementById("settingSleep").value)
+    sleep: appSettings.sleep // Kept from selectSleep
   };
+
+  
   localStorage.setItem('radioSettings', JSON.stringify(appSettings));
   
-  toggleNormalizer(appSettings.normalizer);
-  startSleepTimer(appSettings.sleep);
-  
-  if (window.windowControls && window.windowControls.applySettings) {
-    window.windowControls.applySettings(appSettings);
-  }
+  // Apply ke jendela
+  applySettingsState();
+  showToast("Settings saved!");
 }
+
 
 function toggleSettings() {
   document.getElementById("settingsOverlay").classList.toggle("active");
@@ -2124,7 +2301,9 @@ function toggleExpandPlayer(e) {
 let isCompact = false;
 
 async function toggleCompactMode(enabled) {
+  isCompact = enabled; // Update global state
   if (enabled) {
+
     document.body.classList.add('compact-mode');
     // Force collapse expanded player when entering widget mode
     const player = document.getElementById("mainPlayer");
@@ -2139,11 +2318,22 @@ async function toggleCompactMode(enabled) {
   
   // Call the native Rust window management
   try {
+    // Invoke fungsi Rust yang baru kita perbaiki tadi
     await window.__TAURI__.core.invoke('set_widget_mode', { enabled: enabled });
+    
+    // Jika kembali ke mode normal, panggil ulang applySettingsState 
+    // untuk mengembalikan status Always on Top sesuai pilihan user di database/localStorage
+    if (!enabled) {
+      setTimeout(() => {
+        applySettingsState();
+      }, 300);
+    }
   } catch (err) {
     console.error("Failed to invoke set_widget_mode", err);
   }
 }
+
+
 
 
 
@@ -2238,8 +2428,15 @@ let isManualCity = false;
 let userCoords = null;
 let citiesLoaded = false;
 
-function toggleCityDropdown() {
+function toggleCityDropdown(e) {
+  if (e) e.stopPropagation();
+
   const options = document.getElementById("cityOptions");
+  
+  // Close sleep dropdown if open
+  const sleepOptions = document.getElementById("sleepOptions");
+  if (sleepOptions) sleepOptions.classList.remove("show");
+  
   const isShowing = options.classList.toggle("show");
   
   if (isShowing) {
@@ -2252,7 +2449,7 @@ function toggleCityDropdown() {
         // Trigger empty filter to show all
         filterCities({ target: input });
       }
-    }, 50);
+    }, 100);
   }
 
   // Lazy load cities only once
@@ -2260,6 +2457,7 @@ function toggleCityDropdown() {
     loadCities();
   }
 }
+
 
 function filterCities(e) {
   const q = e.target.value.toLowerCase();
@@ -2279,8 +2477,9 @@ async function loadCities() {
   // Keep the search box and default option
   options.innerHTML = `
     <div class="dropdown-search-box">
-      <input type="text" id="citySearchInput" placeholder="Find city..." onkeyup="filterCities(event)" onclick="event.stopPropagation()">
+      <input type="text" id="citySearchInput" placeholder="Find city..." onkeyup="filterCities(event)" onclick="event.stopPropagation()" autocomplete="off" spellcheck="false">
     </div>
+
     <div class="option" onclick="selectCity('', 'All Cities')">All Cities</div>
   `;
   
@@ -2316,6 +2515,7 @@ async function loadCities() {
             div.style.justifyContent = "space-between";
             options.appendChild(div);
           }
+
         });
         citiesLoaded = true;
         return;
@@ -2581,7 +2781,13 @@ async function changePage(dir) {
 }
 
 async function play(indexOrRadio, streamIndex = 0) {
+  // KILL ALL STALE TIMERS IMMEDIATELY
+  clearTimeout(connectionTimeout);
+  clearTimeout(errorTimeout);
+  clearTimeout(stallTimer);
+  
   let r, index;
+
   if (typeof indexOrRadio === 'number') {
     index = indexOrRadio;
     r = currentRadios[index];
@@ -2627,14 +2833,16 @@ async function play(indexOrRadio, streamIndex = 0) {
   
   localStorage.setItem('lastPlayedRadio', JSON.stringify(playingRadio));
   
-  // Start connection timeout
+  // Start connection timeout (1 minute for maximum patience)
   clearTimeout(connectionTimeout);
   connectionTimeout = setTimeout(() => {
     if (playingRadio && playingRadio.id === r.id && !isPlaying) {
-      console.warn("Connection timeout reached");
+      console.warn("Connection timeout reached (60s)");
       handleError(new Error("Connection timeout"));
     }
-  }, 10000);
+  }, 60000);
+
+
 
   if (hls) {
     hls.destroy();
@@ -2658,13 +2866,33 @@ async function play(indexOrRadio, streamIndex = 0) {
       if (data.fatal) handleError(new Error("HLS Error"));
     });
   } else {
-    audio.src = streamUrl;
+    // Shoutcast/Klikhost Fix: Add .mp3 suffix to trick browser into immediate playback
+    let finalUrl = streamUrl;
+    if (!finalUrl.includes('.m3u8') && !finalUrl.includes('?')) {
+      if (finalUrl.includes('klikhost') || (finalUrl.includes(':') && finalUrl.split(':').length > 2)) {
+        finalUrl += finalUrl.endsWith(';') ? '?.mp3' : '/;?.mp3';
+      }
+    }
+
+    audio.crossOrigin = "anonymous";
+    audio.src = finalUrl;
+    
     audio.play().then(() => {
       if (appSettings.normalizer) initAudioContext();
       updateMediaSession(playingRadio);
-    }).catch(e => handleError(e));
+    }).catch(e => {
+      console.error("Play failed, trying original URL as fallback:", e);
+      // Fallback to original if trick fails
+      if (audio.src !== streamUrl) {
+        audio.src = streamUrl;
+        audio.play().catch(err => handleError(err));
+      } else {
+        handleError(e);
+      }
+    });
     isPlaying = true;
   }
+
   
   updatePlayerUI();
   renderPage();
@@ -2711,28 +2939,91 @@ function handleError(e) {
 }
 
 function setStationStatus(id, status) {
+  if (!id) return;
   stationStatus[id] = status;
   localStorage.setItem('stationStatus', JSON.stringify(stationStatus));
   // Re-render to reflect status change if visible
   renderPage();
 }
 
+let dialogResolve = null;
+function showConfirm(title, message) {
+  return new Promise((resolve) => {
+    document.getElementById("dialogTitle").innerText = title;
+    document.getElementById("dialogMsg").innerText = message;
+    document.getElementById("dialogBackdrop").classList.add("active");
+    dialogResolve = resolve;
+  });
+}
+
+function closeDialog(result) {
+  document.getElementById("dialogBackdrop").classList.remove("active");
+  if (dialogResolve) dialogResolve(result);
+  dialogResolve = null;
+}
+
+let toastTimeout = null;
+function showToast(message, duration = 3000) {
+  const toast = document.getElementById("toast");
+  const msg = document.getElementById("toastMsg");
+  
+  msg.innerText = message;
+  toast.classList.add("show");
+  
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => {
+    toast.classList.remove("show");
+  }, duration);
+}
+
+async function resetStationStatus() {
+    const confirmed = await showConfirm(
+        "Reset Cache", 
+        "Reset status online/offline untuk semua stasiun? Daftar favorit tetap aman."
+    );
+    
+    if (confirmed) {
+        // 1. Kosongkan objek status
+        stationStatus = {}; 
+        
+        // 2. Hapus dari penyimpanan permanen
+        localStorage.removeItem('stationStatus'); 
+        
+        // 3. Render ulang list (PENTING: supaya titik merah/hijau jadi abu-abu semua)
+        renderPage(); 
+        
+        showToast("Status cache has been reset!");
+        
+        // Opsional: Tutup overlay settings setelah reset
+        // toggleSettings(); 
+    }
+}
+
+
+
+
 function tryNextStream() {
   if (!playingRadio || !playingRadio.streams || playingRadio.currentStreamIndex >= playingRadio.streams.length - 1) {
     console.log("All streams failed, skipping station...");
     
-    // Mark as Offline
-    setStationStatus(playingRadio.id, 0);
+    // Don't mark offline immediately, might be transient
+    // setStationStatus(playingRadio.id, 0);
 
     isPlaying = false
+
     document.getElementById("nowSubtitle").innerText = "Error playing stream, skipping..."
     updatePlayerUI()
     
     clearTimeout(errorTimeout);
     errorTimeout = setTimeout(() => {
-      next();
-    }, 1500);
+      // Check again if we are still not playing before skipping
+      if (!isPlaying) {
+        console.log("Still not playing after grace period, skipping...");
+        next();
+      }
+    }, 15000); // Wait 15s after all streams "failed" before skipping station
     return;
+
   }
 
   playingRadio.currentStreamIndex++;
@@ -2749,20 +3040,38 @@ function tryNextStream() {
     hls.attachMedia(audio);
     hls.on(Hls.Events.MANIFEST_PARSED, () => audio.play().catch(err => tryNextStream()));
   } else {
-    audio.src = nextUrl;
+    // Shoutcast/Klikhost Fix for Fallback
+    let finalUrl = nextUrl;
+    if (!finalUrl.includes('.m3u8') && !finalUrl.includes('?')) {
+      if (finalUrl.includes('klikhost') || (finalUrl.includes(':') && finalUrl.split(':').length > 2)) {
+        finalUrl += finalUrl.endsWith(';') ? '?.mp3' : '/;?.mp3';
+      }
+    }
+
+    audio.crossOrigin = "anonymous";
+    audio.src = finalUrl;
+    
     audio.play().catch(err => {
-      console.error("Backup failed, trying next...", err);
-      tryNextStream();
+      console.error("Backup failed with trick, trying original fallback...", err);
+      if (audio.src !== nextUrl) {
+        audio.src = nextUrl;
+        audio.play().catch(e => tryNextStream());
+      } else {
+        tryNextStream();
+      }
     });
   }
 
-  // Reset connection timeout for the next attempt
+
+  // Reset connection timeout for the next attempt (60s)
   clearTimeout(connectionTimeout);
   connectionTimeout = setTimeout(() => {
     if (playingRadio && !audio.playing && isPlaying) {
       handleError(new Error("Connection timeout"));
     }
-  }, 10000);
+  }, 60000);
+
+
 }
 
 function toggle(e) {
@@ -2834,7 +3143,22 @@ async function prev(e) {
   }
 }
 
+let smtcUpdateTimeout = null;
+function updateSMTC(title, artist, logo) {
+  clearTimeout(smtcUpdateTimeout);
+  smtcUpdateTimeout = setTimeout(() => {
+    if (window.__TAURI__) {
+      window.__TAURI__.core.invoke('update_smtc_metadata', {
+        title: title,
+        artist: artist,
+        imageUrl: logo || null
+      }).catch(console.error);
+    }
+  }, 500); // 500ms debounce
+}
+
 function updatePlayerUI() {
+
   if (playingRadio) {
     document.getElementById("nowTitle").innerText = playingRadio.name
     updateAccentColor(playingRadio.logo);
@@ -2895,11 +3219,15 @@ function updatePlayerUI() {
     bar.style.animationPlayState = isPlaying ? 'running' : 'paused';
   });
 
-  pollMetadata();
+  // Poll metadata with a slight delay if it's the first time
+  clearTimeout(metadataTimeout);
+    metadataTimeout = setTimeout(pollMetadata, isPlaying ? 5000 : 15000);
 }
+
 
 let metadataTimeout = null;
 async function pollMetadata() {
+
   if (!playingRadio || !isPlaying) return;
   
   try {
@@ -2914,40 +3242,18 @@ async function pollMetadata() {
       
       updateTrayMarquee(playingRadio.name, meta);
 
-      // Update Media Session with actual song title
-      if ('mediaSession' in navigator) {
-        const targetId = playingRadio.id;
-        getAsDataURL(playingRadio.logo).then(artSrc => {
-          // RACE CONDITION CHECK
-          if (!playingRadio || playingRadio.id !== targetId) return;
+      // Sync with Rust SMTC (Debounced)
+      updateSMTC(meta, playingRadio.name, playingRadio.logo);
 
-          navigator.mediaSession.metadata = new MediaMetadata({
-            title: meta, // Current Song
-            artist: playingRadio.name, // Station Name
-            album: 'Arch Radio',
-            artwork: [
-              { src: artSrc, sizes: '128x128', type: 'image/png' },
-              { src: artSrc, sizes: '512x512', type: 'image/png' }
-            ]
-          });
-
-          // Sync with Rust SMTC
-          window.__TAURI__.core.invoke('update_smtc_metadata', {
-            title: meta,
-            artist: playingRadio.name,
-            imageUrl: playingRadio.logo
-          }).catch(console.error);
-
-        });
-      }
     }
   } catch (e) {
     // Silently fail if no metadata
   }
   
   clearTimeout(metadataTimeout);
-  metadataTimeout = setTimeout(pollMetadata, 15000); // Poll every 15s
+  metadataTimeout = setTimeout(pollMetadata, 20000); // Poll every 20s
 }
+
 
 // Audio events
 audio.addEventListener('waiting', () => {
@@ -2961,7 +3267,7 @@ audio.addEventListener('stalled', () => {
   // Clear any previous stall timer
   clearTimeout(stallTimer);
   
-  // Give it 4 seconds, then try to reload the current stream
+  // Give it 10 seconds (up from 4), then try to reload the current stream
   stallTimer = setTimeout(() => {
     if (!isPlaying || !playingRadio) return;
     
@@ -2974,24 +3280,38 @@ audio.addEventListener('stalled', () => {
     audio.src = currentSrc;
     audio.play().catch(err => {
       console.error("Reload after stall failed:", err);
-      handleError(err);
+      // Wait another bit before fully failing
+      setTimeout(() => {
+        if (!isPlaying) handleError(err);
+      }, 5000);
     });
-  }, 4000);
+  }, 10000);
+
 });
 
 audio.addEventListener('playing', () => {
   isPlaying = true;
   clearTimeout(connectionTimeout);
-  clearTimeout(stallTimer); // Cancel stall retry if audio recovered
-  document.getElementById("nowSubtitle").innerText = "Now playing";
+  clearTimeout(stallTimer);
+  clearTimeout(errorTimeout); // Cancel any pending skips
+  
+  const subtitle = document.getElementById("nowSubtitle");
+
+  if (subtitle.innerText === "Connecting..." || subtitle.innerText === "Buffering...") {
+    subtitle.innerText = "Now playing";
+  }
   
   if (playingRadio) {
     setStationStatus(playingRadio.id, 1);
+    // Initial SMTC update for the station
+    updateSMTC(playingRadio.name, "Now playing", playingRadio.logo);
   }
 
   updatePlayerUI();
+
   if (window.__TAURI__) window.__TAURI__.core.invoke('update_smtc_status', { playing: true });
 });
+
 
 
 audio.addEventListener('error', () => {
@@ -3010,11 +3330,18 @@ audio.onended = () => { next(); }
 
 // Initialize settings and window state on load
 setTimeout(() => {
-  applySettingsState();
   if (window.__TAURI__) {
-    window.__TAURI__.core.invoke('set_widget_mode', { enabled: false });
+    // Set normal mode first, then apply settings (AOT, etc)
+    window.__TAURI__.core.invoke('set_widget_mode', { enabled: false })
+      .then(() => {
+        applySettingsState();
+      });
+  } else {
+    applySettingsState();
   }
 }, 1000);
+
+
 
 // Init Updater - check silently on startup
 setTimeout(() => {
@@ -3057,6 +3384,24 @@ if (window.__TAURI__ && window.__TAURI__.event) {
 }
 
 </script>
+
+<!-- CUSTOM DIALOG -->
+<div class="dialog-backdrop" id="dialogBackdrop">
+  <div class="dialog-box">
+    <div class="dialog-title" id="dialogTitle">Confirmation</div>
+    <div class="dialog-msg" id="dialogMsg">Are you sure?</div>
+    <div class="dialog-actions">
+      <button class="dialog-btn dialog-btn-cancel" onclick="closeDialog(false)">Cancel</button>
+      <button class="dialog-btn dialog-btn-confirm" onclick="closeDialog(true)">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- CUSTOM TOAST -->
+<div class="toast" id="toast">
+  <span class="toast-icon">✓</span>
+  <span id="toastMsg">Action completed</span>
+</div>
 
 </body>
 </html>
