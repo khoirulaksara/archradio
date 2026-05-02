@@ -151,4 +151,3 @@ jobs:
             $nsisFile.FullName `
             "latest.json" `
             "Arch-Radio-Portable.exe"
-
