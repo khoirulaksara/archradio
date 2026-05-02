@@ -169,7 +169,7 @@ async fn set_widget_mode(window: tauri::WebviewWindow, state: tauri::State<'_, A
         let _ = window.set_size(tauri::LogicalSize::new(320.0, 560.0));
         let _ = window.set_decorations(false);
         let _ = window.set_skip_taskbar(false);
-        let _ = window.set_resizable(true);
+        let _ = window.set_resizable(false);
 
         // KUNCINYA DI SINI: Kembalikan AOT sesuai keinginan user sebelumnya
         let user_aot_pref = *state.is_aot_enabled.lock().unwrap();
