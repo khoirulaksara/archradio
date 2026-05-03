@@ -461,7 +461,8 @@
     overflow: hidden;
     position: relative;
     height: 16px;
-    opacity: 0.8;
+    opacity: 1; /* Increased from 0.8 */
+    text-shadow: 0 1px 3px rgba(0,0,0,0.8); /* Stronger protective shadow */
   }
 
   .stream-info {
@@ -486,9 +487,12 @@
 
   .player.expanded .stream-info span {
     font-size: 10px;
-    background: rgba(255, 255, 255, 0.05);
-    padding: 2px 8px;
+    background: rgba(0, 0, 0, 0.4); /* Darker glass background */
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 3px 10px;
     border-radius: 10px;
+    color: white; /* Ensure text is always white inside badge */
     opacity: 1;
   }
 
@@ -710,6 +714,9 @@
     height: 200px;
     border-radius: 20px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    position: relative;
+    z-index: 1;
+    transition: none !important; /* Ensure no lag for beat pulse */
   }
 
   .player.expanded .now-title {
@@ -731,7 +738,7 @@
 
   .player.expanded .player-controls {
     position: absolute;
-    bottom: 0px; /* Fixed distance from bottom */
+    bottom: 0px; 
     left: 0;
     width: 100%;
     display: flex;
@@ -741,7 +748,8 @@
     background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
     padding-top: 20px;
     padding-bottom: 40px;
-    pointer-events: none; /* Allow clicks through to background if needed */
+    z-index: 10; /* Highest layer, above visualizer */
+    pointer-events: none;
   }
 
   .player.expanded .player-controls > * {
@@ -789,7 +797,8 @@
   }
 
   .player.expanded .visualizer-container {
-    opacity: 0.4;
+    opacity: 0.8; /* Increased opacity */
+    z-index: 5; /* Above background and image */
   }
 
   #visualizer {
@@ -1127,16 +1136,19 @@
     border-top: 1px solid var(--border-color);
   }
 
-  .about-title {
-    font-size: 13px;
-    font-weight: 600;
-    margin-bottom: 5px;
-  }
+  .expanded-player .now-title {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 4px;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.5); /* Protective shadow */
+}
 
-  .about-desc {
-    font-size: 11px;
-    color: var(--text-muted);
-  }
+.expanded-player .now-subtitle {
+  font-size: 14px;
+  opacity: 0.8;
+  margin-bottom: 20px;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5); /* Protective shadow */
+}
 
   /* WIDGET MODE STYLES */
   body.compact-mode {

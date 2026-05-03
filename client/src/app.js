@@ -20,6 +20,7 @@ let compressor = null;
 let analyser = null;
 let dataArray = null;
 let peakData = []; // To store falling caps
+let particles = []; // To store persistent floating particles
 let animationId = null;
 
 function initAudioGraph() {
@@ -171,45 +172,135 @@ function startVisualizer() {
     
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
+    // --- BEAT PULSE EFFECT ON IMAGE ---
+    const nowImgEl = document.getElementById('nowImg');
+    // Only use the first 4 bins for TRUE sub-bass detection
+    let bassSum = 0;
+    for(let i=0; i<4; i++) bassSum += dataArray[i];
+    const avgBass = bassSum / (4 * 255.0);
     
-    // Get accent color from CSS
+    if (nowImgEl) {
+      // Threshold: only pulse if bass is strong enough ( > 0.4 )
+      const threshold = 0.4;
+      let pulseValue = 0;
+      if (avgBass > threshold) {
+        // Calculate how much it exceeds the threshold and use power to make it punchy
+        pulseValue = Math.pow((avgBass - threshold) / (1.0 - threshold), 1.5);
+      }
+      
+      const imgScale = 1.0 - (pulseValue * 0.12); // Back to 12% for a cleaner look
+      nowImgEl.style.setProperty('transform', `scale(${imgScale})`, 'important');
+    }
+
+    const bassValue = avgBass;
+
     const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--primary-color').trim() || '#3b82f6';
-    
     const sliceWidth = canvas.width / (dataArray.length / 2);
+
+    // --- LAYER 1: GLOWING PORTAL (OVERLAPPING IMAGE) ---
+    ctx.save();
+    const imgEl = nowImg;
+    let centerX = canvas.width / 2;
+    let centerY = (canvas.height / 2) - 100;
     
-    // --- LAYER 1: SMOOTH AREA (BACKGROUND) ---
-    ctx.save(); // Save state for alpha
+    if (imgEl) {
+      const rect = imgEl.getBoundingClientRect();
+      const canvasRect = canvas.getBoundingClientRect();
+      centerX = (rect.left + rect.width / 2) - canvasRect.left;
+      centerY = (rect.top + rect.height / 2) - canvasRect.top;
+    }
+
+    const outerRadius = 110; 
+    const innerBaseRadius = 105; // Slightly larger to overlap the 100px radius image
+    
+    // Set glow effect
+    ctx.shadowBlur = 20;
+    ctx.shadowColor = accentColor;
+    ctx.globalAlpha = 1.0;
+    
+    // Draw the main portal ring
     ctx.beginPath();
-    ctx.moveTo(0, canvas.height);
-    let x = 0;
+    ctx.arc(centerX, centerY, outerRadius, 0, Math.PI * 2, false);
+    
+    // Inner wavy edge (overlapping the image)
     for (let i = 0; i < dataArray.length / 2; i++) {
       const v = dataArray[i] / 255.0;
-      const y = canvas.height - (v * canvas.height * 0.7);
-      if (i === 0) ctx.lineTo(x, y);
-      else {
-        const prevX = x - sliceWidth;
-        const prevY = canvas.height - ((dataArray[i-1] / 255.0) * canvas.height * 0.7);
-        ctx.quadraticCurveTo(prevX, prevY, (prevX + x) / 2, (prevY + y) / 2);
-      }
-      x += sliceWidth;
+      const angle = (i / (dataArray.length / 4)) * Math.PI;
+      // Overlap: the wave goes from 105 down to 70 (well inside the image)
+      const r = innerBaseRadius - (v * 45); 
+      const tx = centerX + Math.cos(-angle) * r;
+      const ty = centerY + Math.sin(-angle) * r;
+      if (i === 0) ctx.lineTo(tx, ty);
+      else ctx.lineTo(tx, ty);
     }
-    ctx.lineTo(canvas.width, canvas.height);
+    
+    for (let i = (dataArray.length / 2) - 1; i >= 0; i--) {
+      const v = dataArray[i] / 255.0;
+      const angle = - (i / (dataArray.length / 4)) * Math.PI;
+      const r = innerBaseRadius - (v * 45);
+      const tx = centerX + Math.cos(-angle) * r;
+      const ty = centerY + Math.sin(-angle) * r;
+      ctx.lineTo(tx, ty);
+    }
     ctx.closePath();
     
-    const areaGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    areaGradient.addColorStop(0, accentColor); 
-    areaGradient.addColorStop(1, 'rgba(0,0,0,0)');
-    
-    ctx.globalAlpha = 0.7; // Even more dense
-    ctx.fillStyle = areaGradient;
+    // Fill with transparency to see the logo
+    ctx.globalAlpha = 0.1; 
+    ctx.fillStyle = accentColor;
     ctx.fill();
     
-    // Add a sharp solid top line to the area for extra definition
+    // Draw a sharper glowing stroke for the edge
+    ctx.globalAlpha = 0;
     ctx.strokeStyle = accentColor;
-    ctx.lineWidth = 1; // Thinner line
-    ctx.globalAlpha = 0.8; // Slightly softer
+    ctx.lineWidth = 0;
     ctx.stroke();
+
+    // --- ADD PERSISTENT PARTICLES (Smooth Mesh Effect) ---
+    ctx.shadowBlur = 0;
     
+    // Initialize particles if empty
+    if (particles.length === 0) {
+      for (let i = 0; i < 300; i++) {
+        particles.push({
+          angle: Math.random() * Math.PI * 2,
+          distance: innerBaseRadius - Math.random() * 25,
+          size: 0.2 + Math.random() * 0.6,
+          speed: (Math.random() * 0.01) - 0.005, // Random direction and speed
+          scatterMult: 0.5 + Math.random() * 1.5 // Individual explosion power
+        });
+      }
+    }
+
+    // Draw and Update Particles
+    ctx.fillStyle = '#ffffff';
+    
+    // Use pulseValue for the "flash and snap" effect
+    const pThreshold = 0.65; // Even tighter threshold
+    const pPulse = (avgBass > pThreshold) ? Math.pow((avgBass - pThreshold) / (1.0 - pThreshold), 2.0) : 0;
+
+    particles.forEach(p => {
+      // Update position: rotate with its own speed
+      p.angle += p.speed;
+      
+      // ORGANIC EXPLOSION LOGIC: 
+      // Individual scatter multipliers + random noise for a "splash" look
+      const scatter = pPulse * 12 * p.scatterMult; // Reduced to 12px for much tighter look
+      const noise = pPulse * (Math.random() * 4 - 2); // Smoother noise
+      const currentR = p.distance + scatter + noise;
+      
+      const tx = centerX + Math.cos(p.angle) * currentR;
+      const ty = centerY + Math.sin(p.angle) * currentR;
+      
+      // FLASH LOGIC:
+      ctx.globalAlpha = 0.01 + (pPulse * 0.8 * (0.5 + p.scatterMult/2)); 
+      
+      const sizePulse = p.size + (pPulse * 1.2 * p.scatterMult);
+      
+      ctx.beginPath();
+      ctx.arc(tx, ty, sizePulse, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
     ctx.restore();
 
     // --- LAYER 2: THIN BARS & PEAK CAPS (FOREGROUND) ---
@@ -218,10 +309,10 @@ function startVisualizer() {
     const barSpacing = 2;
     const barWidth = sliceWidth - barSpacing;
     
-    const barGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    barGradient.addColorStop(0, accentColor);
-    barGradient.addColorStop(0.8, accentColor); 
-    barGradient.addColorStop(1, 'rgba(0,0,0,0)');
+    const barGradient = ctx.createLinearGradient(0, canvas.height * 0.5, 0, canvas.height);
+    barGradient.addColorStop(0, '#ffffff'); // Bright tip
+    barGradient.addColorStop(0.1, accentColor); // Solid color near top
+    barGradient.addColorStop(0.6, 'rgba(0,0,0,0)'); // Fade out early
     ctx.fillStyle = barGradient;
 
     // Initialize peaks if not set
@@ -231,18 +322,26 @@ function startVisualizer() {
 
     for (let i = 0; i < dataArray.length / 2; i++) {
       const v = dataArray[i] / 255.0;
-      const barHeight = v * canvas.height * 0.6; 
+      const barHeight = v * canvas.height * 0.45; 
       
       // Calculate Peak (Falling Cap)
       if (barHeight > peakData[i]) {
         peakData[i] = barHeight;
       } else {
-        peakData[i] -= 1.5; // Gravity/Fall speed
+        peakData[i] -= 0.5; 
         if (peakData[i] < 0) peakData[i] = 0;
       }
 
       if (barHeight > 0) {
-        ctx.globalAlpha = 1.0; 
+        // Create a LOCAL gradient for each bar for perfect fading
+        const localGradient = ctx.createLinearGradient(0, canvas.height - barHeight, 0, canvas.height);
+        localGradient.addColorStop(0, '#ffffff'); // White tip
+        localGradient.addColorStop(0.3, accentColor); // Accent color near top
+        localGradient.addColorStop(1, 'rgba(0,0,0,0)'); // Total transparency at bottom
+        
+        ctx.fillStyle = localGradient;
+        ctx.globalAlpha = 0.8; // Semi-transparent overall
+        
         if (ctx.roundRect) {
           ctx.beginPath();
           ctx.roundRect(x, canvas.height - barHeight, barWidth, barHeight, [2, 2, 0, 0]);
@@ -252,11 +351,20 @@ function startVisualizer() {
         }
       }
 
-      // Draw the Peak Cap
+      // Draw the Peak Cap (Falling Cap)
       if (peakData[i] > 0) {
-        ctx.fillStyle = accentColor;
-        ctx.globalAlpha = 1.0;
+        // Make the peak cap more visible with a distinct color or white
+        ctx.fillStyle = '#ffffff'; // Solid white for maximum contrast
+        ctx.globalAlpha = 0.9;
+        
+        // Draw the cap slightly above the bar
         ctx.fillRect(x, canvas.height - peakData[i] - 2, barWidth, 2);
+        
+        // Optional: Add a small glow to the peak cap
+        ctx.shadowBlur = 4;
+        ctx.shadowColor = accentColor;
+        ctx.fillRect(x, canvas.height - peakData[i] - 2, barWidth, 2);
+        ctx.shadowBlur = 0; // Reset shadow
       }
 
       x += sliceWidth;
@@ -364,13 +472,17 @@ async function updateAccentColor(imgUrl) {
       let finalR = r, finalG = g, finalB = b;
       
       if (brightness < 60) {
+        // Too dark, brighten it up
         finalR = Math.min(255, r + 120);
         finalG = Math.min(255, g + 120);
         finalB = Math.min(255, b + 120);
-      } else if (brightness > 220) {
-        finalR = Math.max(0, r - 60);
-        finalG = Math.max(0, g - 60);
-        finalB = Math.max(0, b - 60);
+      } else if (brightness > 180) {
+        // Too bright for white text, darken it significantly
+        // We target a maximum brightness of around 160-170
+        const factor = 160 / brightness;
+        finalR = Math.floor(r * factor);
+        finalG = Math.floor(g * factor);
+        finalB = Math.floor(b * factor);
       }
       
       document.documentElement.style.setProperty('--primary-color', `rgb(${finalR}, ${finalG}, ${finalB})`);
@@ -1537,8 +1649,7 @@ function updatePlayerUI() {
     infoContainer.style.display = "flex";
     
     const imgSrc = playingRadio.logo || fallbackImage;
-    const imgHtml = `<img src="${imgSrc}" onerror="this.src='${fallbackImage}'">`
-    document.getElementById("nowImg").innerHTML = imgHtml;
+    document.getElementById("nowImg").innerHTML = `<img src="${imgSrc}" onerror="this.src='${fallbackImage}'">`;
     
     // Update expanded player background
     document.getElementById("expandedBg").style.backgroundImage = `url(${imgSrc})`;
