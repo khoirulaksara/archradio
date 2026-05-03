@@ -5,27 +5,28 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Arch Radio</title>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="src/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <script type="module" crossorigin src="/assets/index-Dx3X_twT.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-GZ4_NxVV.css">
 </head>
 
 <body>
 
 <div class="header">
   <div class="header-title">
-    <img src="public/icon-32.png" alt="Icon" style="width: 18px; height: 18px; border-radius: 4px;"> Arch Radio
+    <img src="/icon-32.png" alt="Icon" style="width: 18px; height: 18px; border-radius: 4px;"> Arch Radio
   </div>
   <div class="window-controls">
     <div class="settings-btn-wrapper">
       <div id="updateBadge" class="update-badge">★</div>
-      <button class="win-btn" onclick="toggleSettings()" title="Settings">
+      <button class="win-btn" id="btnSettings" onclick="toggleSettings()" data-t-title="settings.title">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
       </button>
     </div>
-    <button class="win-btn" onclick="toggleFavoritesMode()" id="favToggleBtn" title="Favorites">
+    <button class="win-btn" id="btnFav" onclick="toggleFavoritesMode()" id="favToggleBtn" data-t-title="app.no_favorites">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
     </button>
-    <button class="win-btn" onclick="toggleSearch()" id="searchToggleBtn" title="Search">
+    <button class="win-btn" id="searchToggleBtn" onclick="toggleSearch()" data-t-title="app.search_placeholder">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
     </button>
     <button class="win-btn" onclick="window.windowControls.minimize()" title="Minimize">
@@ -39,7 +40,7 @@
 
 <div class="search-container" id="searchContainer">
   <div class="search-wrapper">
-    <input type="text" class="search-input" id="searchInput" placeholder="Search radio stations..." onkeyup="handleSearch(event)" autocomplete="off" spellcheck="false">
+    <input type="text" class="search-input" id="searchInput" data-t="app.search_placeholder" placeholder="Search radio stations..." onkeyup="handleSearch(event)" autocomplete="off" spellcheck="false">
 
     <button class="clear-btn" id="clearSearchBtn" onclick="clearSearch()" title="Clear Search">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
@@ -48,32 +49,28 @@
 </div>
 
 <div class="filter-bar" id="filterBar" style="padding: 0 16px 10px; margin-top: 5px;">
-  <!-- Custom Premium Dropdown -->
   <div class="custom-dropdown" id="cityDropdown" style="margin: 0 4px;">
     <div class="dropdown-selected" onclick="toggleCityDropdown(event)">
-
-      <span id="selectedCityLabel">All Cities</span>
+      <span id="selectedCityLabel" data-t="app.all_cities">All Cities</span>
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
     </div>
     <div class="dropdown-options" id="cityOptions">
       <div class="dropdown-search-box">
-        <input type="text" id="citySearchInput" placeholder="Find city..." onkeyup="filterCities(event)" onclick="event.stopPropagation()" autocomplete="off" spellcheck="false">
+        <input type="text" id="citySearchInput" data-t="app.find_city" placeholder="Find city..." onkeyup="filterCities(event)" onclick="event.stopPropagation()" autocomplete="off" spellcheck="false">
       </div>
-
-      <div class="option" onclick="selectCity('', 'All Cities')">All Cities</div>
-      <!-- Cities will be loaded here -->
+      <div class="option" onclick="selectCity('', t('app.all_cities'))" data-t="app.all_cities">All Cities</div>
     </div>
   </div>
 </div>
 
 <div class="list-container" id="list">
-  <div class="loading">Loading stations...</div>
+  <div class="loading" data-t="app.loading">Loading stations...</div>
 </div>
 
 <div class="pagination">
-  <button class="page-btn" id="prevPage" onclick="changePage(-1)">&#8592; Prev</button>
+  <button class="page-btn" id="prevPage" onclick="changePage(-1)" data-t="app.prev">&#8592; Prev</button>
   <span id="pageInfo">Page 1</span>
-  <button class="page-btn" id="nextPage" onclick="changePage(1)">Next &#8594;</button>
+  <button class="page-btn" id="nextPage" onclick="changePage(1)" data-t="app.next">Next &#8594;</button>
 </div>
 
 <div class="player" id="mainPlayer" onclick="toggleExpandPlayer(event)">
@@ -91,11 +88,11 @@
   
   <div class="player-main">
     <div class="now-img" id="nowImg">
-      <img src="public/icon-128.png" alt="Icon" style="width: 100%; height: 100%; object-fit: cover;">
+      <img src="/icon-128.png" alt="Icon" style="width: 100%; height: 100%; object-fit: cover;">
     </div>
     <div class="now-text">
-      <div class="now-title" id="nowTitle">Not playing</div>
-      <div class="now-subtitle" id="nowSubtitle"><span class="marquee-content">Select a station</span></div>
+      <div class="now-title" id="nowTitle" data-t="player.not_playing">Not playing</div>
+      <div class="now-subtitle" id="nowSubtitle"><span class="marquee-content" data-t="player.select_station">Select a station</span></div>
       <div class="sleep-timer-display" id="sleepDisplay"></div>
     </div>
     <button class="fav-btn" id="nowFavBtn" style="display: none;" onclick="toggleFavoriteCurrent(event)">
@@ -131,7 +128,7 @@
 <!-- SETTINGS OVERLAY -->
 <div class="settings-overlay" id="settingsOverlay">
   <div class="settings-header">
-    <div class="settings-title">Settings</div>
+    <div class="settings-title" data-t="settings.title">Settings</div>
     <button class="win-btn" onclick="toggleSettings()" title="Close Settings">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
     </button>
@@ -139,29 +136,27 @@
   <div class="settings-content">
     <div class="setting-item">
       <div class="setting-text">
-        <div class="setting-name">Minimize to Tray</div>
-        <div class="setting-desc">Hide window to system tray when minimized or closed</div>
+        <div class="setting-name" data-t="settings.tray">Minimize to Tray</div>
+        <div class="setting-desc" data-t="settings.tray_desc">Hide window to system tray when minimized or closed</div>
       </div>
       <label class="toggle-switch">
         <input type="checkbox" id="settingTray" onchange="updateSettings()">
         <span class="slider"></span>
       </label>
     </div>
-
     
     <div class="setting-item">
       <div class="setting-text">
-        <div class="setting-name">Reset Status Cache</div>
-        <div class="setting-desc">Clear online/offline history for all stations</div>
+        <div class="setting-name" data-t="settings.reset">Reset Status Cache</div>
+        <div class="setting-desc" data-t="settings.reset_desc">Clear online/offline history for all stations</div>
       </div>
-      <button class="page-btn" onclick="resetStationStatus()" style="color: #ef4444;">Reset</button>
+      <button class="page-btn" onclick="resetStationStatus()" style="color: #ef4444;" data-t="settings.reset">Reset</button>
     </div>
 
-    
     <div class="setting-item">
       <div class="setting-text">
-        <div class="setting-name">Always on Top</div>
-        <div class="setting-desc">Keep Arch Radio above other windows</div>
+        <div class="setting-name" data-t="settings.aot">Always on Top</div>
+        <div class="setting-desc" data-t="settings.aot_desc">Keep Arch Radio above other windows</div>
       </div>
       <label class="toggle-switch">
         <input type="checkbox" id="settingAOT" onchange="updateSettings()">
@@ -171,8 +166,8 @@
 
     <div class="setting-item">
       <div class="setting-text">
-        <div class="setting-name">Audio Normalizer</div>
-        <div class="setting-desc">Auto-balance volume levels across stations</div>
+        <div class="setting-name" data-t="settings.normalizer">Audio Normalizer</div>
+        <div class="setting-desc" data-t="settings.normalizer_desc">Auto-balance volume levels across stations</div>
       </div>
       <label class="toggle-switch">
         <input type="checkbox" id="settingNormalizer" onchange="updateSettings()">
@@ -182,8 +177,8 @@
     
     <div class="setting-item">
       <div class="setting-text">
-        <div class="setting-name">Sleep Timer</div>
-        <div class="setting-desc">Auto-close app in minutes</div>
+        <div class="setting-name" data-t="settings.sleep">Sleep Timer</div>
+        <div class="setting-desc" data-t="settings.sleep_desc">Auto-close app in minutes</div>
       </div>
       <div class="custom-dropdown" id="sleepDropdown" style="width: 100px;">
         <div class="dropdown-selected" onclick="toggleSleepDropdown(event)">
@@ -201,12 +196,22 @@
       </div>
     </div>
 
+    <div class="setting-item">
+      <div class="setting-text">
+        <div class="setting-name" data-t="settings.language">Language</div>
+      </div>
+      <select id="settingLang" onchange="changeLanguage(this.value)" style="background: var(--surface-hover); color: white; border: 1px solid var(--border-color); border-radius: 4px; padding: 4px 8px;">
+        <option value="en">English</option>
+        <option value="id">Bahasa Indonesia</option>
+      </select>
+    </div>
+
 
     <div class="about-section">
       <div class="about-title">Developed by Aksara</div>
       <div class="about-desc">Codename: Archangel</div>
       <div class="about-desc" id="appVersionDisplay" style="margin-top:4px; opacity:0.7">Version ...</div>
-      <button class="win-btn" id="checkUpdateBtn" onclick="window.windowControls.checkUpdates()" style="margin-top: 15px; width: 100%; height: 36px; background: var(--surface-hover); border: 1px solid var(--border-color); border-radius: 8px; font-size: 12px;">
+      <button class="win-btn" id="checkUpdateBtn" onclick="window.windowControls.checkUpdates()" style="margin-top: 15px; width: 100%; height: 36px; background: var(--surface-hover); border: 1px solid var(--border-color); border-radius: 8px; font-size: 12px;" data-t="settings.check_update">
         Check for Updates
       </button>
     </div>
@@ -215,20 +220,18 @@
     <div class="update-modal-backdrop" id="updateModalBackdrop" onclick="closeUpdateModal()">
       <div class="update-modal" onclick="event.stopPropagation()">
         <div class="update-modal-icon">🚀</div>
-        <div class="update-modal-title">Update Available</div>
+        <div class="update-modal-title" data-t="update.available">Update Available</div>
         <div class="update-modal-version" id="updateModalVersion"></div>
         <div class="update-modal-notes" id="updateModalNotes"></div>
         <div class="update-modal-actions">
-          <button class="update-btn-cancel" onclick="closeUpdateModal()">Later</button>
-          <button class="update-btn-install" id="updateModalInstallBtn">Install &amp; Relaunch</button>
+          <button class="update-btn-cancel" onclick="closeUpdateModal()" data-t="update.later">Later</button>
+          <button class="update-btn-install" id="updateModalInstallBtn" data-t="update.install">Install &amp; Relaunch</button>
         </div>
       </div>
     </div>
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-<script src="src/app.js"></script>
 
 <!-- CUSTOM DIALOG -->
 <div class="dialog-backdrop" id="dialogBackdrop">
@@ -236,8 +239,8 @@
     <div class="dialog-title" id="dialogTitle">Confirmation</div>
     <div class="dialog-msg" id="dialogMsg">Are you sure?</div>
     <div class="dialog-actions">
-      <button class="dialog-btn dialog-btn-cancel" onclick="closeDialog(false)">Cancel</button>
-      <button class="dialog-btn dialog-btn-confirm" onclick="closeDialog(true)">Confirm</button>
+      <button class="dialog-btn dialog-btn-cancel" id="btnCancel" onclick="closeDialog(false)" data-t="update.later">Cancel</button>
+      <button class="dialog-btn dialog-btn-confirm" id="btnConfirm" onclick="closeDialog(true)" data-t="settings.reset">Confirm</button>
     </div>
   </div>
 </div>
@@ -245,7 +248,7 @@
 <!-- CUSTOM TOAST -->
 <div class="toast" id="toast">
   <span class="toast-icon">✓</span>
-  <span id="toastMsg">Settings saved!</span>
+  <span id="toastMsg">Action completed</span>
 </div>
 
 </body>
