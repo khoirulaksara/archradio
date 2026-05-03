@@ -7,7 +7,7 @@ pub mod smtc;
 
 
 use tauri::{
-    menu::{Menu, MenuItem},
+    menu::{Menu, IconMenuItem, IconMenuItemBuilder},
     tray::TrayIconBuilder,
     Emitter, Manager,
 };
@@ -133,7 +133,8 @@ use std::sync::Mutex;
 
 struct AppState {
     last_normal_pos: Mutex<Option<tauri::PhysicalPosition<i32>>>,
-    is_aot_enabled: Mutex<bool>, // Simpan status pilihan user di sini
+    is_aot_enabled: Mutex<bool>,
+    tray_menu: Mutex<Option<Menu<tauri::Wry>>>,
 }
 
 
@@ -274,15 +275,41 @@ fn set_aumid() {
     }
 }
 
+#[tauri::command]
+fn update_tray_playback(app: tauri::AppHandle, state: tauri::State<'_, AppState>, playing: bool) {
+    let menu_lock = state.tray_menu.lock().unwrap();
+    if let Some(menu) = menu_lock.as_ref() {
+        // Cari menu item berdasarkan ID "play_pause"
+        if let Some(item_kind) = menu.get("play_pause") {
+            if let Some(item) = item_kind.as_icon_menuitem() {
+                let text = if playing { "Pause Radio" } else { "Play Radio" };
+                let icon_name = if playing { "pause.png" } else { "play.png" };
+                
+                let path = app.path().resource_dir().unwrap_or_default().join("icons").join(icon_name);
+                let icon = if let Ok(img) = tauri::image::Image::from_path(path) {
+                    Some(img)
+                } else {
+                    let fallback = app.path().resource_dir().unwrap_or_default().join("icons/32x32.png");
+                    tauri::image::Image::from_path(fallback).ok()
+                };
+                
+                let _ = item.set_icon(icon);
+                let _ = item.set_text(text);
+            }
+        }
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     #[cfg(target_os = "windows")]
     set_aumid();
-
+    
     tauri::Builder::default()
         .manage(AppState { 
             last_normal_pos: Mutex::new(None),
             is_aot_enabled: Mutex::new(false),
+            tray_menu: Mutex::new(None),
         })
 
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, Some(vec![])))
@@ -295,6 +322,7 @@ pub fn run() {
             set_widget_mode, 
             set_always_on_top,
             proxy_get,
+            update_tray_playback,
 
             resolve_url,
             get_indonesia_stations,
@@ -308,15 +336,44 @@ pub fn run() {
 
         ])
         .setup(|app| {
-            let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-            let show_i = MenuItem::with_id(app, "show", "Show Radio", true, None::<&str>)?;
-            let play_i = MenuItem::with_id(app, "play_pause", "Play / Pause", true, None::<&str>)?;
-            let next_i = MenuItem::with_id(app, "next", "Next Station", true, None::<&str>)?;
-            let prev_i = MenuItem::with_id(app, "prev", "Previous Station", true, None::<&str>)?;
+            // Fungsi pembantu untuk memuat ikon dari folder icons
+            let load_icon = |app: &tauri::App, name: &str| -> Option<tauri::image::Image> {
+                let path = app.path().resource_dir().ok()?.join("icons").join(name);
+                if let Ok(img) = tauri::image::Image::from_path(path) {
+                    Some(img)
+                } else {
+                    // Jika tidak ketemu (misal play.png belum ada), gunakan ikon logo sebagai cadangan
+                    let fallback_path = app.path().resource_dir().ok()?.join("icons/32x32.png");
+                    tauri::image::Image::from_path(fallback_path).ok()
+                }
+            };
+
+            // Fungsi pembantu untuk membuat IconMenuItem dengan aman
+            let build_item = |app: &tauri::App, id: &str, text: &str, icon: Option<tauri::image::Image>| -> tauri::Result<IconMenuItem<tauri::Wry>> {
+                let mut builder = IconMenuItemBuilder::with_id(id, text);
+                if let Some(img) = icon {
+                    builder = builder.icon(img);
+                }
+                builder.build(app)
+            };
+
+            // Memuat ikon masing-masing
+            let quit_i = build_item(app, "quit", "Quit", load_icon(app, "quit.png"))?;
+            let show_i = build_item(app, "show", "Show Radio", load_icon(app, "show.png"))?;
+            let play_i = build_item(app, "play_pause", "Play / Pause", load_icon(app, "play.png"))?;
+            let next_i = build_item(app, "next", "Next Station", load_icon(app, "next.png"))?;
+            let prev_i = build_item(app, "prev", "Previous Station", load_icon(app, "prev.png"))?;
+            let compact_i = build_item(app, "toggle_compact", "Compact Mode", load_icon(app, "compact.png"))?;
             
-            let compact_i = MenuItem::with_id(app, "toggle_compact", "Compact Mode", true, None::<&str>)?;
-            
+            // Item Header (Arch Radio) - Tetap enabled agar warna muncul, tapi tidak diberi fungsi
+            let header_i = IconMenuItemBuilder::with_id("header", "Arch Radio")
+                .icon(load_icon(app, "32x32.png").unwrap())
+                .enabled(true) 
+                .build(app)?;
+
             let menu = Menu::with_items(app, &[
+                &header_i,
+                &tauri::menu::PredefinedMenuItem::separator(app)?,
                 &play_i, 
                 &prev_i, 
                 &next_i, 
@@ -326,6 +383,10 @@ pub fn run() {
                 &tauri::menu::PredefinedMenuItem::separator(app)?,
                 &quit_i
             ])?;
+
+            // Simpan menu di State agar bisa diupdate nanti
+            let state = app.state::<AppState>();
+            *state.tray_menu.lock().unwrap() = Some(menu.clone());
 
             let _tray = TrayIconBuilder::with_id("main")
                 .icon(app.default_window_icon().unwrap().clone())

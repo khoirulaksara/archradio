@@ -1691,6 +1691,11 @@ function updatePlayerUI() {
     bar.style.animationPlayState = isPlaying ? 'running' : 'paused';
   });
 
+  // Sync Tray Playback Status
+  if (window.__TAURI__) {
+    window.__TAURI__.core.invoke('update_tray_playback', { playing: isPlaying }).catch(() => {});
+  }
+
   // Poll metadata with a slight delay if it's the first time
   clearTimeout(metadataTimeout);
     metadataTimeout = setTimeout(pollMetadata, isPlaying ? 5000 : 15000);
