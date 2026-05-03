@@ -240,6 +240,30 @@ async fn detect_ip_location() -> Result<serde_json::Value, String> {
     Ok(json)
 }
 
+#[tauri::command]
+async fn is_portable() -> Result<bool, String> {
+    if let Ok(path) = std::env::current_exe() {
+        if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+            return Ok(name.to_lowercase().contains("portable"));
+        }
+    }
+    Ok(false)
+}
+
+#[tauri::command]
+async fn download_portable(url: String, filename: String) -> Result<String, String> {
+    let client = reqwest::Client::new();
+    let response = client.get(url).send().await.map_err(|e| e.to_string())?;
+    let bytes = response.bytes().await.map_err(|e| e.to_string())?;
+
+    let mut exe_path = std::env::current_exe().map_err(|e| e.to_string())?;
+    exe_path.set_file_name(filename);
+
+    std::fs::write(&exe_path, bytes).map_err(|e| e.to_string())?;
+
+    Ok(exe_path.to_string_lossy().to_string())
+}
+
 #[cfg(target_os = "windows")]
 fn set_aumid() {
     use windows::Win32::UI::Shell::SetCurrentProcessExplicitAppUserModelID;
@@ -276,6 +300,8 @@ pub fn run() {
             get_indonesia_stations,
             get_cities,
             detect_ip_location,
+            is_portable,
+            download_portable,
             smtc::update_smtc_metadata,
             smtc::update_smtc_status
 

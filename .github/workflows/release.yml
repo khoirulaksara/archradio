@@ -118,7 +118,14 @@ jobs:
           $nsisUrl = "https://github.com/khoirulaksara/archradio/releases/download/$tag/$nsisGhName"
           $nsisSigContent = Get-Content $nsisExeSig.FullName -Raw
 
-          # Build latest.json with both MSI and NSIS entries
+          # Copy portable exe
+          $portableName = "Arch-Radio-v$version-Portable.exe"
+          $portableExe = "src-tauri/target/release/archradio.exe"
+          Copy-Item $portableExe $portableName -ErrorAction SilentlyContinue
+
+          $portableUrl = "https://github.com/khoirulaksara/archradio/releases/download/$tag/$portableName"
+
+          # Build latest.json with both MSI, NSIS, and Portable entries
           $pub_date = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
           $latestJson = @{
             version  = $version
@@ -134,14 +141,11 @@ jobs:
                 url       = $nsisUrl
               }
             }
+            portable_url = $portableUrl
           } | ConvertTo-Json -Depth 10
           $latestJson | Set-Content latest.json
           echo "Generated latest.json:"
           cat latest.json
-
-          # Copy portable exe
-          $portableExe = "src-tauri/target/release/archradio.exe"
-          Copy-Item $portableExe "Arch-Radio-Portable.exe" -ErrorAction SilentlyContinue
 
           # Create release
           gh release create $tag `
@@ -150,4 +154,4 @@ jobs:
             $msiFile.FullName `
             $nsisFile.FullName `
             "latest.json" `
-            "Arch-Radio-Portable.exe"
+            $portableName

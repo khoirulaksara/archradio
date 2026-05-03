@@ -2124,20 +2124,19 @@ window.windowControls = {
       
       const update = await window.__TAURI__.updater.check();
       if (update) {
-        btn.innerText = "Update Now";
+        // Detect if portable mode
+        let isPortable = false;
+        try {
+          isPortable = await window.__TAURI__.core.invoke('is_portable');
+        } catch(err) { console.warn("Failed to detect portable mode:", err); }
+
+        btn.innerText = isPortable ? "Download Versioned" : "Update Now";
         btn.style.background = "var(--primary-color)";
         btn.style.color = "white";
         btn.disabled = false;
         
-        // Change onclick temporarily to install directly if clicked again
-        btn.onclick = async () => {
-          btn.innerText = "Installing...";
-          btn.disabled = true;
-          await update.downloadAndInstall();
-        };
-
         // Show custom modal instead of native confirm()
-        showUpdateModal(update);
+        showUpdateModal(update, isPortable);
       } else {
         btn.innerText = "Latest Version";
         btn.style.background = "rgba(74, 222, 128, 0.2)"; // Soft green
@@ -2208,7 +2207,7 @@ function toggleSettings() {
 }
 
 let _pendingUpdate = null;
-async function showUpdateModal(update) {
+async function showUpdateModal(update, isPortable = false) {
   _pendingUpdate = update;
   
   // Make sure settings is open if we are showing the modal
@@ -2220,13 +2219,51 @@ async function showUpdateModal(update) {
   document.getElementById("updateModalNotes").innerText = update.body || 'Bug fixes and improvements.';
   
   const installBtn = document.getElementById("updateModalInstallBtn");
-  installBtn.innerText = "Install & Relaunch";
-  installBtn.disabled = false;
-  installBtn.onclick = async () => {
-    installBtn.innerText = "Installing...";
-    installBtn.disabled = true;
-    await _pendingUpdate.downloadAndInstall();
-  };
+  
+  if (isPortable) {
+    installBtn.innerText = "Update Portable";
+    installBtn.disabled = false;
+    installBtn.onclick = async () => {
+      try {
+        installBtn.innerText = "Downloading...";
+        installBtn.disabled = true;
+        
+        // Fetch latest.json manually to get portable_url
+        // Using a cache-busting timestamp
+        const response = await fetch('https://github.com/khoirulaksara/archradio/releases/latest/download/latest.json?t=' + Date.now());
+        const data = await response.json();
+        
+        if (data.portable_url) {
+          const filename = `Arch-Radio-v${update.version}-Portable.exe`;
+          await window.__TAURI__.core.invoke('download_portable', { 
+            url: data.portable_url,
+            filename: filename
+          });
+          
+          installBtn.innerText = "Downloaded!";
+          showToast(`Portable saved to same folder!`);
+          
+          // Display instruction in notes
+          document.getElementById("updateModalNotes").innerText = `New version downloaded as: ${filename}\n\nSilakan tutup aplikasi ini dan jalankan versi baru tersebut.`;
+        } else {
+          throw new Error("Portable URL not found in metadata");
+        }
+      } catch (e) {
+        console.error("Portable download failed:", e);
+        installBtn.innerText = "Download Failed";
+        installBtn.disabled = false;
+        showToast("Download failed. Coba lagi atau update manual.");
+      }
+    };
+  } else {
+    installBtn.innerText = "Install & Relaunch";
+    installBtn.disabled = false;
+    installBtn.onclick = async () => {
+      installBtn.innerText = "Installing...";
+      installBtn.disabled = true;
+      await _pendingUpdate.downloadAndInstall();
+    };
+  }
   
   document.getElementById("updateModalBackdrop").classList.add("active");
 }
