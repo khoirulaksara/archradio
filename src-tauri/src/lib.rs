@@ -210,17 +210,20 @@ async fn set_sidebar_mode(
         let _ = window.set_resizable(false);
         
         if let Ok(Some(monitor)) = window.primary_monitor() {
-            let screen_size = monitor.size();
+            let work_area = monitor.work_area();
+            let work_area_size = work_area.size;
+            let work_area_pos = work_area.position;
             let scale_factor = monitor.scale_factor();
             
-            // Mulai dalam keadaan collapsed (lebar 10px) setinggi layar
-            let logical_size = tauri::LogicalSize::new(10.0, screen_size.height as f64 / scale_factor);
+            // Mulai dalam keadaan collapsed (lebar 10px) setinggi work area (tidak menutupi taskbar)
+            let logical_size = tauri::LogicalSize::new(10.0, work_area_size.height as f64 / scale_factor);
             let physical_size = logical_size.to_physical::<u32>(scale_factor);
             
             let _ = window.set_size(physical_size);
             
-            let x = screen_size.width - physical_size.width;
-            let _ = window.set_position(tauri::PhysicalPosition::new(x as i32, 0));
+            let x = work_area_pos.x + work_area_size.width as i32 - physical_size.width as i32;
+            let y = work_area_pos.y;
+            let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
         }
     } else {
         // Keluar dari sidebar mode, kembalikan ukuran dan posisi semula
@@ -248,17 +251,20 @@ async fn set_sidebar_expanded(
     expanded: bool,
 ) -> Result<(), String> {
     if let Ok(Some(monitor)) = window.primary_monitor() {
-        let screen_size = monitor.size();
+        let work_area = monitor.work_area();
+        let work_area_size = work_area.size;
+        let work_area_pos = work_area.position;
         let scale_factor = monitor.scale_factor();
         
         let width = if expanded { 320.0 } else { 10.0 };
-        let logical_size = tauri::LogicalSize::new(width, screen_size.height as f64 / scale_factor);
+        let logical_size = tauri::LogicalSize::new(width, work_area_size.height as f64 / scale_factor);
         let physical_size = logical_size.to_physical::<u32>(scale_factor);
         
         let _ = window.set_size(physical_size);
         
-        let x = screen_size.width - physical_size.width;
-        let _ = window.set_position(tauri::PhysicalPosition::new(x as i32, 0));
+        let x = work_area_pos.x + work_area_size.width as i32 - physical_size.width as i32;
+        let y = work_area_pos.y;
+        let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
     }
     Ok(())
 }
