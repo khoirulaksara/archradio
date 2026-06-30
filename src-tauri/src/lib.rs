@@ -191,7 +191,77 @@ async fn set_widget_mode(window: tauri::WebviewWindow, state: tauri::State<'_, A
     Ok(())
 }
 
+#[tauri::command]
+async fn set_sidebar_mode(
+    window: tauri::WebviewWindow,
+    state: tauri::State<'_, AppState>,
+    enabled: bool,
+) -> Result<(), String> {
+    if enabled {
+        // Simpan posisi normal sebelum masuk sidebar mode
+        if let Ok(pos) = window.outer_position() {
+            let mut last_pos = state.last_normal_pos.lock().unwrap();
+            *last_pos = Some(pos);
+        }
 
+        let _ = window.set_always_on_top(true);
+        let _ = window.set_decorations(false);
+        let _ = window.set_skip_taskbar(true);
+        let _ = window.set_resizable(false);
+        
+        if let Ok(Some(monitor)) = window.primary_monitor() {
+            let screen_size = monitor.size();
+            let scale_factor = monitor.scale_factor();
+            
+            // Mulai dalam keadaan collapsed (lebar 10px) setinggi layar
+            let logical_size = tauri::LogicalSize::new(10.0, screen_size.height as f64 / scale_factor);
+            let physical_size = logical_size.to_physical::<u32>(scale_factor);
+            
+            let _ = window.set_size(physical_size);
+            
+            let x = screen_size.width - physical_size.width;
+            let _ = window.set_position(tauri::PhysicalPosition::new(x as i32, 0));
+        }
+    } else {
+        // Keluar dari sidebar mode, kembalikan ukuran dan posisi semula
+        let _ = window.set_size(tauri::LogicalSize::new(320.0, 560.0));
+        let _ = window.set_decorations(false);
+        let _ = window.set_skip_taskbar(false);
+        let _ = window.set_resizable(false);
+
+        let user_aot_pref = *state.is_aot_enabled.lock().unwrap();
+        let _ = window.set_always_on_top(user_aot_pref); 
+        
+        let last_pos = state.last_normal_pos.lock().unwrap();
+        if let Some(pos) = *last_pos {
+            let _ = window.set_position(pos);
+        } else {
+            let _ = window.center();
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+async fn set_sidebar_expanded(
+    window: tauri::WebviewWindow,
+    expanded: bool,
+) -> Result<(), String> {
+    if let Ok(Some(monitor)) = window.primary_monitor() {
+        let screen_size = monitor.size();
+        let scale_factor = monitor.scale_factor();
+        
+        let width = if expanded { 320.0 } else { 10.0 };
+        let logical_size = tauri::LogicalSize::new(width, screen_size.height as f64 / scale_factor);
+        let physical_size = logical_size.to_physical::<u32>(scale_factor);
+        
+        let _ = window.set_size(physical_size);
+        
+        let x = screen_size.width - physical_size.width;
+        let _ = window.set_position(tauri::PhysicalPosition::new(x as i32, 0));
+    }
+    Ok(())
+}
 
 #[tauri::command]
 async fn set_always_on_top(
@@ -329,6 +399,8 @@ pub fn run() {
             set_always_on_top,
             proxy_get,
             update_tray_playback,
+            set_sidebar_mode,
+            set_sidebar_expanded,
 
             resolve_url,
             get_indonesia_stations,
@@ -338,8 +410,6 @@ pub fn run() {
             download_portable,
             smtc::update_smtc_metadata,
             smtc::update_smtc_status
-
-
         ])
         .setup(|app| {
             // Fungsi pembantu untuk memuat ikon dari folder icons

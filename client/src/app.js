@@ -499,7 +499,7 @@ audio.volume = parseFloat(localStorage.getItem('radioVolume') || '1')
 document.getElementById('volSlider').value = audio.volume
 
 // Settings Management
-let appSettings = JSON.parse(localStorage.getItem('radioSettings') || '{"tray":true,"startup":false,"onTop":true,"normalizer":false,"sleep":0}')
+let appSettings = JSON.parse(localStorage.getItem('radioSettings') || '{"tray":true,"startup":false,"onTop":true,"normalizer":false,"sleep":0,"sidebar":false,"sidebarPinned":false}')
 
 // Tauri Initialization
 window.windowControls = {
@@ -586,11 +586,24 @@ function applySettingsState() {
   if(document.getElementById("settingTray")) document.getElementById("settingTray").checked = settings.tray;
   if(document.getElementById("settingAOT")) document.getElementById("settingAOT").checked = settings.onTop;
   if(document.getElementById("settingNormalizer")) document.getElementById("settingNormalizer").checked = settings.normalizer;
+  if(document.getElementById("settingSidebar")) document.getElementById("settingSidebar").checked = !!settings.sidebar;
   
-  // Update Sleep Dropdown Label
-  const sleepLabels = {0: 'Off', 15: '15m', 30: '30m', 60: '60m', 90: '90m', 120: '120m'};
-  if(document.getElementById("selectedSleepLabel")) {
-    document.getElementById("selectedSleepLabel").innerText = sleepLabels[settings.sleep] || 'Off';
+  // Toggle sidebar-mode class
+  document.body.classList.toggle('sidebar-mode', !!settings.sidebar);
+  
+  const pinBtn = document.getElementById("pinSidebarBtn");
+  if (pinBtn) {
+    pinBtn.classList.toggle("pinned", !!settings.sidebarPinned);
+  }
+
+  if (settings.sidebar) {
+    if (settings.sidebarPinned) {
+      document.body.classList.remove('collapsed');
+    } else {
+      document.body.classList.add('collapsed');
+    }
+  } else {
+    document.body.classList.remove('collapsed');
   }
 
   updateNormalizerState();
@@ -602,6 +615,16 @@ function applySettingsState() {
     window.__TAURI__.core.invoke('set_always_on_top', { 
       enabled: settings.onTop 
     }).catch(console.error);
+
+    // Call Rust to synchronize Sidebar mode
+    window.__TAURI__.core.invoke('set_sidebar_mode', { 
+      enabled: !!settings.sidebar 
+    }).then(() => {
+      // If we entered sidebar mode and it is pinned, expand it immediately
+      if (settings.sidebar && settings.sidebarPinned) {
+        window.__TAURI__.core.invoke('set_sidebar_expanded', { expanded: true }).catch(console.error);
+      }
+    }).catch(console.error);
   }
 }
 
@@ -610,6 +633,8 @@ function updateSettings() {
     tray: document.getElementById("settingTray").checked,
     onTop: document.getElementById("settingAOT").checked,
     normalizer: document.getElementById("settingNormalizer").checked,
+    sidebar: document.getElementById("settingSidebar").checked,
+    sidebarPinned: appSettings.sidebarPinned || false,
     sleep: appSettings.sleep // Kept from selectSleep
   };
 
@@ -1859,3 +1884,63 @@ if (window.__TAURI__ && window.__TAURI__.event) {
   window.__TAURI__.event.listen('smtc-next', () => next());
   window.__TAURI__.event.listen('smtc-prev', () => prev());
 }
+
+// SIDEBAR HOVER & FOCUS TRACKING
+let sidebarHoverTimeout = null;
+
+document.addEventListener('mouseenter', () => {
+  if (appSettings.sidebar) {
+    if (appSettings.sidebarPinned) return; // ignore hover events when pinned
+    if (sidebarHoverTimeout) clearTimeout(sidebarHoverTimeout);
+    document.body.classList.remove('collapsed');
+    if (window.__TAURI__) {
+      window.__TAURI__.core.invoke('set_sidebar_expanded', { expanded: true }).catch(console.error);
+    }
+  }
+});
+
+document.addEventListener('mouseleave', () => {
+  if (appSettings.sidebar) {
+    if (appSettings.sidebarPinned) return; // ignore hover events when pinned
+    if (sidebarHoverTimeout) clearTimeout(sidebarHoverTimeout);
+    sidebarHoverTimeout = setTimeout(() => {
+      document.body.classList.add('collapsed');
+      if (window.__TAURI__) {
+        window.__TAURI__.core.invoke('set_sidebar_expanded', { expanded: false }).catch(console.error);
+      }
+    }, 400); // 400ms delay to prevent accidental collapse
+  }
+});
+
+window.addEventListener('blur', () => {
+  if (appSettings.sidebar) {
+    if (appSettings.sidebarPinned) return; // ignore focus loss when pinned
+    if (sidebarHoverTimeout) clearTimeout(sidebarHoverTimeout);
+    document.body.classList.add('collapsed');
+    if (window.__TAURI__) {
+      window.__TAURI__.core.invoke('set_sidebar_expanded', { expanded: false }).catch(console.error);
+    }
+  }
+});
+
+function togglePinSidebar() {
+  appSettings.sidebarPinned = !appSettings.sidebarPinned;
+  
+  const pinBtn = document.getElementById("pinSidebarBtn");
+  if (pinBtn) {
+    pinBtn.classList.toggle("pinned", appSettings.sidebarPinned);
+  }
+  
+  if (appSettings.sidebarPinned) {
+    document.body.classList.remove('collapsed');
+    if (window.__TAURI__) {
+      window.__TAURI__.core.invoke('set_sidebar_expanded', { expanded: true }).catch(console.error);
+    }
+  } else {
+    // If unpinned, the mouse is currently hovering the pin button (inside window),
+    // so we keep it expanded. It will collapse normally when the mouse leaves.
+  }
+  
+  localStorage.setItem('radioSettings', JSON.stringify(appSettings));
+}
+

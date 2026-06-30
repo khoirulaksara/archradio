@@ -1586,4 +1586,78 @@
   .toast-icon {
     color: var(--primary-color);
   }
-  
+
+  /* SIDEBAR MODE DOCKING STYLES */
+  body.sidebar-mode {
+    border-left: 1.5px solid var(--primary-color) !important;
+    box-sizing: border-box;
+    transition: border-left 0.25s ease-in-out;
+    border-radius: 0 !important;
+  }
+
+  body.sidebar-mode .header {
+    -webkit-app-region: no-drag !important;
+    border-radius: 0 !important;
+    border-top-left-radius: 0 !important;
+    border-top-right-radius: 0 !important;
+    
+    /* Layout change to position buttons below title */
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    height: auto;
+    min-height: 85px;
+    padding: 12px 16px 10px;
+    justify-content: flex-start;
+    position: relative;
+    box-sizing: border-box;
+  }
+
+  body.sidebar-mode .window-controls {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    gap: 12px;
+    margin-top: 10px;
+    justify-content: flex-start;
+  }
+
+  /* Absolute position the OS controls at the top right */
+  body.sidebar-mode .window-controls button[title="Minimize"] {
+    position: absolute !important;
+    top: 12px !important;
+    right: 44px !important;
+    margin: 0 !important;
+    z-index: 10;
+  }
+
+  body.sidebar-mode .window-controls button[title="Close"] {
+    position: absolute !important;
+    top: 12px !important;
+    right: 16px !important;
+    margin: 0 !important;
+    z-index: 10;
+  }
+
+  /* Smooth fade-in/out of content when expanding/collapsing */
+  body.sidebar-mode > * {
+    transition: opacity 0.25s ease-in-out;
+  }
+
+  body.sidebar-mode.collapsed {
+    border-left: 1.5px solid rgba(255, 255, 255, 0.15) !important;
+    border-radius: 0 !important;
+  }
+
+  body.sidebar-mode.collapsed > * {
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+
+  body.sidebar-mode #pinSidebarBtn {
+    display: flex !important;
+  }
+
+  .win-btn.pinned {
+    color: var(--primary-color) !important;
+  }

@@ -16,6 +16,9 @@
     <img src="public/icon-32.png" alt="Icon" style="width: 18px; height: 18px; border-radius: 4px;"> Arch Radio
   </div>
   <div class="window-controls">
+    <button class="win-btn" onclick="togglePinSidebar()" id="pinSidebarBtn" title="Pin Sidebar" style="display: none;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"></line><path d="M5 17h14v-1.76a2 2 0 0 0-.44-1.24l-2.78-3.5A2 2 0 0 1 15 9.24V5a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v4.24c0 .43-.14.85-.4 1.2l-2.78 3.5a2 2 0 0 0-.44 1.24z"></path></svg>
+    </button>
     <div class="settings-btn-wrapper">
       <div id="updateBadge" class="update-badge">★</div>
       <button class="win-btn" onclick="toggleSettings()" title="Settings">
@@ -165,6 +168,17 @@
       </div>
       <label class="toggle-switch">
         <input type="checkbox" id="settingAOT" onchange="updateSettings()">
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div class="setting-item">
+      <div class="setting-text">
+        <div class="setting-name">Sidebar Player</div>
+        <div class="setting-desc">Dock window to right screen edge and auto-hide</div>
+      </div>
+      <label class="toggle-switch">
+        <input type="checkbox" id="settingSidebar" onchange="updateSettings()">
         <span class="slider"></span>
       </label>
     </div>
